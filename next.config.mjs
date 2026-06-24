@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  reactStrictMode: true,
+  experimental: {
+    serverComponentsExternalPackages: ['node-forge', 'node:crypto', '@react-pdf/renderer'],
+  },
+}
 
-export default nextConfig;
+export default nextConfig
