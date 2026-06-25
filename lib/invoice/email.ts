@@ -1,17 +1,20 @@
 import { Resend } from 'resend'
 import type { PosInvoice } from '@/types'
 
-console.log('[email] RESEND_API_KEY present:', !!process.env.RESEND_API_KEY)
-console.log('[email] RESEND_FROM_EMAIL env:', process.env.RESEND_FROM_EMAIL ?? '(not set, will use onboarding@resend.dev)')
-console.log('[email] RESEND_TEST_TO env:', process.env.RESEND_TEST_TO ?? '(not set, will use invoice client_email)')
-
-if (!process.env.RESEND_API_KEY) {
-  console.error('[email] RESEND_API_KEY is not set — all sends will fail')
-}
-
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
+
+let resendClient: Resend | null = null
+
+function getResend(): Resend {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY is not set')
+    }
+    resendClient = new Resend(apiKey)
+  }
+  return resendClient
+}
 
 export interface EmailOptions {
   brandPrimary?: string
@@ -47,7 +50,7 @@ export async function sendInvoiceEmail(
         : [],
     }
 
-    const { data, error } = await resend.emails.send(payload)
+    const { data, error } = await getResend().emails.send(payload)
 
     console.log('[email]   data :', JSON.stringify(data))
     console.log('[email]   error:', JSON.stringify(error))
