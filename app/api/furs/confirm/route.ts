@@ -4,11 +4,15 @@ import { createServiceClient } from '@/lib/supabase'
 import { confirmInvoiceWithFurs, generateZoiForInvoice } from '@/lib/furs/api'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
 import { decrypt } from '@/lib/crypto'
+import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { companyId, premiseId, deviceId, invoiceData } = body
+
+    const auth = await requireCompanyAccess(req, companyId)
+    if ('response' in auth) return auth.response
 
     const supabase = createServiceClient()
 

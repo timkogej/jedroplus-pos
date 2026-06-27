@@ -9,6 +9,7 @@ import Select from '@/components/ui/Select'
 import Modal from '@/components/ui/Modal'
 import InvoicePDF from '@/components/invoice/InvoicePDF'
 import { printThermal } from '@/lib/invoice/thermal-print'
+import { authFetch } from '@/lib/authFetch'
 import type { InvoiceFormData, InvoiceItemForm, PosPremise, PosDevice, PosSettings, PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
 
 interface InvoiceFormProps {
@@ -143,7 +144,7 @@ export default function InvoiceForm({
 
     setLoading(true)
     try {
-      const res = await fetch('/api/invoices/create', {
+      const res = await authFetch('/api/invoices/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -229,7 +230,7 @@ export default function InvoiceForm({
   async function openPdfInTab() {
     if (!issuedInvoice?.id) return
     try {
-      const res = await fetch(`/api/invoices/${issuedInvoice.id}/pdf`)
+      const res = await authFetch(`/api/invoices/${issuedInvoice.id}/pdf`)
       if (!res.ok) throw new Error('PDF generation failed')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -276,7 +277,7 @@ export default function InvoiceForm({
 
     if ((method === 'email' || method === 'both') && emailTo) {
       try {
-        const res = await fetch(`/api/invoices/${invoiceId}/send-email`, {
+        const res = await authFetch(`/api/invoices/${invoiceId}/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ companyName }),

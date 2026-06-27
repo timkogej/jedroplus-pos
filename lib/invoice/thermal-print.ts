@@ -4,6 +4,7 @@ interface ThermalPrintOptions {
   invoice: PosInvoice & { pos_invoice_items?: PosInvoiceItem[] }
   companyName: string
   companyAddress?: string
+  companyContact?: string
   taxNumber?: string
 }
 
@@ -24,15 +25,20 @@ function shortenCode(code: string | null | undefined, len = 20): string {
 }
 
 export function printThermal(opts: ThermalPrintOptions): void {
-  const { invoice, companyName, companyAddress, taxNumber } = opts
+  const { invoice, companyName, companyAddress, companyContact, taxNumber } = opts
   const items = invoice.pos_invoice_items ?? []
   const isDemo = (invoice.furs_response as { demo?: boolean } | null)?.demo === true
+
+  const invDate = new Date(invoice.invoice_date)
+  const datum = invDate.toLocaleDateString('sl-SI')
+  const cas = invDate.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' })
+  const printedAt = new Date().toLocaleString('sl-SI')
 
   const qrContent = invoice.zoi
     ? `https://blagajne.fu.gov.si/0/${invoice.zoi}`
     : invoice.eor ?? invoice.invoice_number
 
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrContent)}`
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrContent)}`
 
   const vatByRate: Record<number, { base: number; vat: number }> = {}
   items.forEach((item) => {
@@ -75,7 +81,8 @@ export function printThermal(opts: ThermalPrintOptions): void {
     font-size: 10px;
     margin: 6px 0;
   }
-  img.qr { display: block; margin: 6px auto; width: 80px; height: 80px; }
+  img.qr { display: block; margin: 6px auto; width: 150px; height: 150px; }
+  .test { color: #c00; }
   @media print {
     body { width: 72mm; }
     @page { size: 80mm auto; margin: 0; }
@@ -85,14 +92,17 @@ export function printThermal(opts: ThermalPrintOptions): void {
 <body>
   <div class="center bold" style="font-size:13px;">${companyName}</div>
   ${companyAddress ? `<div class="center small">${companyAddress}</div>` : ''}
+  ${companyContact ? `<div class="center small">${companyContact}</div>` : ''}
   ${taxNumber ? `<div class="center small">ID za DDV: ${taxNumber}</div>` : ''}
 
-  ${isDemo ? `<div class="warning">⚠ TESTNI NAČIN ⚠</div>` : ''}
+  ${isDemo ? `<div class="warning test">⚠ TESTNI NAČIN ⚠</div>` : ''}
 
   <div class="line"></div>
 
-  <div class="row"><span>Račun:</span><span class="bold">${invoice.invoice_number}</span></div>
-  <div class="row"><span>Datum:</span><span>${new Date(invoice.invoice_date).toLocaleDateString('sl-SI')}</span></div>
+  <div class="center bold">RAČUN</div>
+  <div class="row"><span>Številka:</span><span class="bold">${invoice.invoice_number}</span></div>
+  <div class="row"><span>Datum:</span><span>${datum}</span></div>
+  <div class="row"><span>Čas:</span><span>${cas}</span></div>
   <div class="row"><span>Plačilo:</span><span>${PAYMENT_LABELS[invoice.payment_method] ?? invoice.payment_method}</span></div>
   ${invoice.client_name ? `<div class="row"><span>Stranka:</span><span>${invoice.client_name}</span></div>` : ''}
 
@@ -117,13 +127,17 @@ export function printThermal(opts: ThermalPrintOptions): void {
 
   <div class="line"></div>
 
-  ${invoice.zoi ? `<div class="small">ZOI: ${shortenCode(invoice.zoi, 24)}</div>` : ''}
-  ${invoice.eor ? `<div class="small">EOR: ${shortenCode(invoice.eor, 24)}</div>` : ''}
+  ${invoice.zoi ? `<div class="small">ZOI: ${shortenCode(invoice.zoi, 8)}</div>` : ''}
+  ${invoice.eor ? `<div class="small">EOR: ${shortenCode(invoice.eor, 8)}</div>` : ''}
 
   <img class="qr" src="${qrUrl}" alt="QR" />
 
+  <div class="line"></div>
+
   <div class="center small">Račun potrjen pri FURS</div>
-  ${isDemo ? `<div class="center bold small">** TESTNI NAČIN **</div>` : ''}
+  ${isDemo ? `<div class="center bold small test">** TESTNI NAČIN **</div>` : ''}
+  <div class="center bold" style="margin-top:4px;">Hvala za obisk!</div>
+  <div class="center small" style="margin-top:4px;">Natisnjeno: ${printedAt}</div>
 
   <div style="margin-top:8px;"></div>
 </body>
@@ -139,7 +153,7 @@ export function printThermal(opts: ThermalPrintOptions): void {
   popup.focus()
   setTimeout(() => {
     popup.print()
-  }, 400)
+  }, 1500)
 }
 
 export function printA4(slug: string, invoiceId: string): void {

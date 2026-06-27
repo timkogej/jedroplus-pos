@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { authFetch } from '@/lib/authFetch'
 
 interface CertificateInfo {
   tax_number: string
@@ -53,7 +54,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
       formData.append('password', password)
       formData.append('company_id', companyId)
 
-      const res = await fetch('/api/certificates/upload', {
+      const res = await authFetch('/api/certificates/upload', {
         method: 'POST',
         body: formData,
       })

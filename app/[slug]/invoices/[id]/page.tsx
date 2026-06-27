@@ -10,7 +10,8 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import InvoicePDF from '@/components/invoice/InvoicePDF'
 import { printThermal } from '@/lib/invoice/thermal-print'
-import type { PosInvoice, PosInvoiceItem } from '@/types'
+import { authFetch } from '@/lib/authFetch'
+import type { PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
 
 export default function InvoiceDetailPage() {
   const params = useParams()
@@ -20,6 +21,7 @@ export default function InvoiceDetailPage() {
 
   const [invoice, setInvoice] = useState<(PosInvoice & { pos_invoice_items?: PosInvoiceItem[] }) | null>(null)
   const [company, setCompany] = useState<{ id: string; name: string } | null>(null)
+  const [companyData, setCompanyData] = useState<PosCompanyData | null>(null)
   const [loading, setLoading] = useState(true)
   const [printHint, setPrintHint] = useState(false)
   const [stornoModalOpen, setStornoModalOpen] = useState(false)
@@ -33,6 +35,10 @@ export default function InvoiceDetailPage() {
     ])
     setCompany(comp)
     setInvoice(inv)
+    if (comp) {
+      const { data: cd } = await supabase.from('pos_company_data').select('*').eq('company_id', comp.id).maybeSingle()
+      setCompanyData(cd)
+    }
     setLoading(false)
   }, [id, slug])
 
@@ -40,7 +46,7 @@ export default function InvoiceDetailPage() {
 
   async function downloadPdf() {
     if (!invoice) return
-    const res = await fetch(`/api/invoices/${invoice.id}/pdf`)
+    const res = await authFetch(`/api/invoices/${invoice.id}/pdf`)
     if (res.ok) {
       const { base64, filename } = await res.json()
       const binary = atob(base64)
@@ -73,7 +79,7 @@ export default function InvoiceDetailPage() {
 
   async function fetchPdfBase64(): Promise<string | null> {
     if (!invoice) return null
-    const res = await fetch(`/api/invoices/${invoice.id}/pdf`)
+    const res = await authFetch(`/api/invoices/${invoice.id}/pdf`)
     if (!res.ok) return null
     const { base64 } = await res.json()
     return base64 as string
@@ -110,7 +116,15 @@ export default function InvoiceDetailPage() {
 
   function handlePrintThermal() {
     if (!invoice || !company) return
-    printThermal({ invoice, companyName: company.name })
+    const addressParts = [companyData?.address, [companyData?.postal_code, companyData?.city].filter(Boolean).join(' ')].filter(Boolean)
+    const contact = [companyData?.phone, companyData?.email].filter(Boolean).join(' · ')
+    printThermal({
+      invoice,
+      companyName: companyData?.company_name || company.name,
+      companyAddress: addressParts.join(', ') || undefined,
+      companyContact: contact || undefined,
+      taxNumber: companyData?.vat_id || companyData?.tax_number || undefined,
+    })
   }
 
   async function handleStorno() {
@@ -118,7 +132,7 @@ export default function InvoiceDetailPage() {
     setStornoLoading(true)
     setStornoError(null)
     try {
-      const res = await fetch(`/api/invoices/${invoice.id}/storno`, { method: 'POST' })
+      const res = await authFetch(`/api/invoices/${invoice.id}/storno`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
         setStornoError(data.error ?? 'Napaka pri storniranju')

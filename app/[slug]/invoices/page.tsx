@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
+import ExportInvoicesButton from '@/components/invoice/ExportInvoicesButton'
 import type { PosInvoice } from '@/types'
 
 export const revalidate = 0
@@ -46,9 +47,12 @@ export default async function InvoicesPage({ params }: { params: { slug: string 
         slug={params.slug}
         title="Računi"
         action={
-          <Link href={`/${params.slug}/invoices/new`}>
-            <Button size="sm">+ Nov račun</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ExportInvoicesButton companyId={company.id} />
+            <Link href={`/${params.slug}/invoices/new`}>
+              <Button size="sm">+ Nov račun</Button>
+            </Link>
+          </div>
         }
       />
       <main className="flex-1 p-4 md:p-6">

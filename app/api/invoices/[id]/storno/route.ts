@@ -5,13 +5,17 @@ import { confirmInvoiceWithFurs, generateZoiForInvoice } from '@/lib/furs/api'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
 import { decrypt } from '@/lib/crypto'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
+import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
 import type { PosInvoiceItem } from '@/types'
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await requireInvoiceAccess(req, params.id)
+    if ('response' in auth) return auth.response
+
     const supabase = createServiceClient()
 
     // Load original invoice with items

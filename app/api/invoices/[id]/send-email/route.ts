@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { sendInvoiceEmail } from '@/lib/invoice/email'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
+import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const auth = await requireInvoiceAccess(req, params.id)
+    if ('response' in auth) return auth.response
+
     const body = await req.json().catch(() => ({}))
     const clientCompanyName: string = body.companyName ?? ''
     const supabase = createServiceClient()

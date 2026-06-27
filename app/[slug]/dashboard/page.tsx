@@ -2,19 +2,26 @@ import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
-import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
+import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: 'green' | 'red' }) {
+  const subColor = accent === 'green' ? 'text-green-600' : accent === 'red' ? 'text-red-600' : 'text-gray-400'
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5">
       <p className="text-xs text-gray-500 font-medium tracking-wide">{label}</p>
       <p className="text-xl md:text-2xl font-semibold text-gray-900 mt-1">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+      {sub && <p className={`text-xs mt-1 ${subColor}`}>{sub}</p>}
     </div>
   )
 }
+
+const eur = (n: number) => `${n.toFixed(2)} €`
+
+/** Invoice rows that count towards revenue (exclude storno + cancelled). */
+type StatRow = Pick<PosInvoice, 'total' | 'payment_method' | 'status' | 'invoice_date'>
+const isRevenue = (s: string) => s !== 'storno' && s !== 'cancelled'
 
 export const revalidate = 0
 
@@ -29,16 +36,20 @@ export default async function DashboardPage({ params }: { params: { slug: string
 
   if (!company) redirect('/login')
 
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
+  const now = new Date()
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const thirtyStart = new Date(now); thirtyStart.setDate(now.getDate() - 29); thirtyStart.setHours(0, 0, 0, 0)
+  // Fetch from the earliest boundary we need so today/month/prev-month/30-day are all computed in JS.
+  const statsFrom = prevMonthStart < thirtyStart ? prevMonthStart : thirtyStart
 
-  const [{ data: todayInvoices }, { data: recentInvoices }, { data: pendingAppointments }] = await Promise.all([
+  const [{ data: statInvoices }, { data: recentInvoices }, { data: pendingAppointments }] = await Promise.all([
     supabase
       .from('pos_invoices')
-      .select('total, payment_method, status')
+      .select('total, payment_method, status, invoice_date')
       .eq('company_id', company.id)
-      .gte('invoice_date', todayStart.toISOString())
-      .neq('status', 'cancelled'),
+      .gte('invoice_date', statsFrom.toISOString()),
     supabase
       .from('pos_invoices')
       .select('*')
@@ -63,11 +74,49 @@ export default async function DashboardPage({ params }: { params: { slug: string
   const invoicedIds = new Set((invoicedAppts ?? []).map((i) => i.appointment_id))
   const uninvoicedCount = (pendingAppointments ?? []).filter((a) => !invoicedIds.has(a.id)).length
 
-  const todayTotal = (todayInvoices ?? []).reduce((sum, inv) => sum + inv.total, 0)
-  const cashTotal = (todayInvoices ?? []).filter((i) => i.payment_method === 'cash').reduce((s, i) => s + i.total, 0)
-  const cardTotal = (todayInvoices ?? []).filter((i) => i.payment_method === 'card').reduce((s, i) => s + i.total, 0)
+  const rows = (statInvoices ?? []) as StatRow[]
+  const inRange = (r: StatRow, from: Date, to?: Date) => {
+    const d = new Date(r.invoice_date)
+    return d >= from && (!to || d < to)
+  }
+  const sum = (arr: StatRow[]) => arr.reduce((s, r) => s + r.total, 0)
 
-  const paymentLabel: Record<string, string> = { cash: 'Gotovina', card: 'Kartica', transfer: 'Nakazilo' }
+  // Today
+  const todayRows = rows.filter((r) => inRange(r, todayStart))
+  const todayRevenueRows = todayRows.filter((r) => isRevenue(r.status))
+  const todayTotal = sum(todayRevenueRows)
+  const cashTotal = sum(todayRevenueRows.filter((r) => r.payment_method === 'cash'))
+  const cardTotal = sum(todayRevenueRows.filter((r) => r.payment_method === 'card'))
+  const onlineTotal = sum(todayRevenueRows.filter((r) => r.payment_method === 'online'))
+  const stornoTodayCount = todayRows.filter((r) => r.status === 'storno_original').length
+
+  // This month vs previous month
+  const monthRows = rows.filter((r) => inRange(r, monthStart) && isRevenue(r.status))
+  const prevMonthRows = rows.filter((r) => inRange(r, prevMonthStart, monthStart) && isRevenue(r.status))
+  const monthTotal = sum(monthRows)
+  const prevMonthTotal = sum(prevMonthRows)
+  const monthAvg = monthRows.length ? monthTotal / monthRows.length : 0
+  const monthChange = prevMonthTotal > 0 ? ((monthTotal - prevMonthTotal) / prevMonthTotal) * 100 : null
+
+  // Last 30 days revenue chart, one bucket per day
+  const buckets = new Map<string, { total: number; count: number }>()
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(thirtyStart); d.setDate(thirtyStart.getDate() + i)
+    buckets.set(d.toISOString().slice(0, 10), { total: 0, count: 0 })
+  }
+  rows.filter((r) => isRevenue(r.status) && inRange(r, thirtyStart)).forEach((r) => {
+    const key = new Date(r.invoice_date).toISOString().slice(0, 10)
+    const b = buckets.get(key)
+    if (b) { b.total += r.total; b.count += 1 }
+  })
+  const chartData: RevenuePoint[] = Array.from(buckets.entries()).map(([date, v]) => ({
+    date,
+    label: `${new Date(date).getDate()}.${new Date(date).getMonth() + 1}.`,
+    total: Number(v.total.toFixed(2)),
+    count: v.count,
+  }))
+
+  const paymentLabel: Record<string, string> = { cash: 'Gotovina', card: 'Kartica', transfer: 'Nakazilo', online: 'Splet' }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -82,16 +131,42 @@ export default async function DashboardPage({ params }: { params: { slug: string
       />
       <main className="flex-1 p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-6">
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard label="Promet danes" value={`${todayTotal.toFixed(2)} €`} sub={`${(todayInvoices ?? []).length} računov`} />
-            <StatCard label="Gotovina" value={`${cashTotal.toFixed(2)} €`} />
-            <StatCard label="Kartica" value={`${cardTotal.toFixed(2)} €`} />
+          {/* Today's stats */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <StatCard label="Prihodki danes" value={eur(todayTotal)} sub={`${todayRevenueRows.length} računov`} />
+            <StatCard label="Število računov danes" value={String(todayRows.length)} />
+            <StatCard label="Gotovina danes" value={eur(cashTotal)} />
+            <StatCard label="Kartica danes" value={eur(cardTotal)} />
+            <StatCard label="Spletna plačila danes" value={eur(onlineTotal)} />
             <StatCard
-              label="Za fakturirati"
-              value={String(uninvoicedCount)}
-              sub={uninvoicedCount > 0 ? 'terminov čaka' : 'vsi fakturirani'}
+              label="Stornirani danes"
+              value={String(stornoTodayCount)}
+              sub={stornoTodayCount > 0 ? 'storniranih računov' : 'brez storniranj'}
+              accent={stornoTodayCount > 0 ? 'red' : undefined}
             />
+          </div>
+
+          {/* Revenue chart */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <h2 className="text-sm font-semibold text-gray-900 mb-1">Promet zadnjih 30 dni</h2>
+            <p className="text-xs text-gray-400 mb-4">Dnevni prihodki v EUR</p>
+            <RevenueChart data={chartData} />
+          </div>
+
+          {/* This month summary */}
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900 mb-3">Ta mesec</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard label="Mesečni prihodki" value={eur(monthTotal)} />
+              <StatCard label="Število računov" value={String(monthRows.length)} />
+              <StatCard label="Povpr. vrednost računa" value={eur(monthAvg)} />
+              <StatCard
+                label="Glede na prejšnji mesec"
+                value={monthChange === null ? '—' : `${monthChange >= 0 ? '+' : ''}${monthChange.toFixed(1)} %`}
+                sub={monthChange === null ? 'ni podatkov' : `prej ${eur(prevMonthTotal)}`}
+                accent={monthChange === null ? undefined : monthChange >= 0 ? 'green' : 'red'}
+              />
+            </div>
           </div>
 
           {/* Quick action banner */}

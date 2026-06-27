@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { stripe } from '@/lib/stripe'
+import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 
 export async function POST(req: NextRequest) {
   try {
     const { companyId } = await req.json()
 
-    if (!companyId) {
-      return NextResponse.json({ error: 'Manjka companyId' }, { status: 400 })
-    }
+    const auth = await requireCompanyAccess(req, companyId)
+    if ('response' in auth) return auth.response
 
     const supabase = createServiceClient()
 

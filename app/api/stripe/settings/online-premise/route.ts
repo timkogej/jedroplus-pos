@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 
 // Saves which premise/device a company uses for online (Stripe) booking invoices.
 export async function POST(req: NextRequest) {
   try {
     const { companyId, onlinePremiseId, onlineDeviceId } = await req.json()
 
-    if (!companyId) {
-      return NextResponse.json({ error: 'Manjka companyId' }, { status: 400 })
-    }
+    const auth = await requireCompanyAccess(req, companyId)
+    if ('response' in auth) return auth.response
 
     const supabase = createServiceClient()
 

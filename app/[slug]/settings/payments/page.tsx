@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import type { PosPremise, PosDevice } from '@/types'
@@ -65,7 +66,7 @@ export default function PaymentsSettingsPage() {
       if (settingsRow?.online_device_id) setOnlineDeviceId(settingsRow.online_device_id)
 
       try {
-        const res = await fetch('/api/stripe/connect/status', {
+        const res = await authFetch('/api/stripe/connect/status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ companyId: company.id }),
@@ -94,7 +95,7 @@ export default function PaymentsSettingsPage() {
     setConnecting(true)
     setError('')
     try {
-      const res = await fetch('/api/stripe/connect/onboard', {
+      const res = await authFetch('/api/stripe/connect/onboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId }),
@@ -117,7 +118,7 @@ export default function PaymentsSettingsPage() {
     setOpening(true)
     setError('')
     try {
-      const res = await fetch('/api/stripe/connect/login-link', {
+      const res = await authFetch('/api/stripe/connect/login-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId }),
@@ -140,7 +141,7 @@ export default function PaymentsSettingsPage() {
     setOnlineSaved(false)
     setError('')
     try {
-      const res = await fetch('/api/stripe/settings/online-premise', {
+      const res = await authFetch('/api/stripe/settings/online-premise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

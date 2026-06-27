@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { encrypt } from '@/lib/crypto'
+import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import forge from 'node-forge'
 
 export async function POST(req: NextRequest) {
@@ -13,6 +14,9 @@ export async function POST(req: NextRequest) {
     if (!file || !password || !companyId) {
       return NextResponse.json({ error: 'Manjkajo podatki' }, { status: 400 })
     }
+
+    const auth = await requireCompanyAccess(req, companyId)
+    if ('response' in auth) return auth.response
 
     const arrayBuffer = await file.arrayBuffer()
     const p12Buffer = Buffer.from(arrayBuffer)
