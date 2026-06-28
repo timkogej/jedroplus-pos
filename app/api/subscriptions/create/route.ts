@@ -24,11 +24,21 @@ export const runtime = 'nodejs'
 export async function POST(req: NextRequest) {
   try {
     const { plan, interval, companyId } = await req.json()
+    const hasAuthHeader = !!req.headers.get('Authorization')
+    console.log('[subscriptions/create] request', { plan, interval, companyId, hasAuthHeader })
 
     const auth = await requireCompanyAccess(req, companyId)
-    if ('response' in auth) return auth.response
+    if ('response' in auth) {
+      console.error('[subscriptions/create] auth/access failed', {
+        status: auth.response.status,
+        companyId,
+        hasAuthHeader,
+      })
+      return auth.response
+    }
 
     if (!isValidPlan(plan) || !isValidInterval(interval)) {
+      console.error('[subscriptions/create] invalid plan/interval', { plan, interval })
       return NextResponse.json({ error: 'Neveljaven paket ali obdobje' }, { status: 400 })
     }
 
@@ -44,6 +54,11 @@ export async function POST(req: NextRequest) {
     const slug = company?.slug
 
     if (!slug) {
+      console.error('[subscriptions/create] company not found / missing slug', {
+        companyId,
+        companyRowFound: !!company,
+        companyDataFound: !!companyData,
+      })
       return NextResponse.json({ error: 'Podjetje ni najdeno' }, { status: 404 })
     }
 

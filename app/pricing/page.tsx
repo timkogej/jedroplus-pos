@@ -1,12 +1,13 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
 import { resolveCompanyForUser } from '@/lib/auth/resolveCompany'
 import { authFetch } from '@/lib/authFetch'
 import Button from '@/components/ui/Button'
+import { isValidInterval, isValidPlan } from '@/lib/subscription-plans'
 import type { PlanId, BillingInterval } from '@/lib/subscription-plans'
 
 const PLANS = {
@@ -75,33 +76,34 @@ function CheckIcon() {
   )
 }
 
-export default function PricingPage() {
+function PricingPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const setCompanyData = usePosStore((s) => s.setCompanyData)
   const storedCompanyId = usePosStore((s) => s.companyId)
   const storedSlug = usePosStore((s) => s.companySlug)
 
-  const [interval, setInterval] = useState<BillingInterval>('monthly')
+  // Allow the interval to be pre-selected from the URL (e.g. after a login
+  // round-trip) so the auto-started checkout matches what the user picked.
+  const intervalParam = searchParams.get('interval')
+  const [interval, setInterval] = useState<BillingInterval>(
+    isValidInterval(intervalParam) ? intervalParam : 'monthly',
+  )
   const [companyId, setCompanyId] = useState<string | null>(storedCompanyId)
   const [slug, setSlug] = useState<string | null>(storedSlug)
   const [submitting, setSubmitting] = useState<PlanId | null>(null)
   const [error, setError] = useState('')
 
-  // Resolve the logged-in user's company (sessions live in localStorage, so we
-  // resolve client-side just like AuthGuard does).
+  // /pricing is a public page, so we never force-redirect to /login on mount.
+  // We DO resolve the company eagerly when a user is already logged in, so the
+  // id is ready the moment they click a plan.
   useEffect(() => {
     if (companyId && slug) return
     async function resolve() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user?.id) {
-        router.replace('/login')
-        return
-      }
+      if (!user?.id) return // not logged in — that's fine, page stays public
       const company = await resolveCompanyForUser(supabase, user.id)
-      if (!company) {
-        router.replace('/login')
-        return
-      }
+      if (!company) return
       setCompanyId(company.id)
       setSlug(company.slug)
       setCompanyData({
@@ -112,12 +114,24 @@ export default function PricingPage() {
       })
     }
     resolve()
-  }, [companyId, slug, router, setCompanyData])
+  }, [companyId, slug, setCompanyData])
 
   async function startTrial(plan: PlanId) {
-    if (!companyId) return
-    setSubmitting(plan)
     setError('')
+
+    // Public page: if the visitor isn't logged in, send them to /login and
+    // remember the plan + interval so we can resume checkout afterwards.
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      const params = new URLSearchParams({ redirect: '/pricing', plan, interval })
+      router.push(`/login?${params.toString()}`)
+      return
+    }
+
+    // Logged in but company not resolved yet — wait for the effect above.
+    if (!companyId) return
+
+    setSubmitting(plan)
     try {
       const res = await authFetch('/api/subscriptions/create', {
         method: 'POST',
@@ -138,6 +152,19 @@ export default function PricingPage() {
       setSubmitting(null)
     }
   }
+
+  // After a login round-trip, the URL carries the plan the visitor picked.
+  // Auto-resume checkout once the company is resolved. Guard so it runs once.
+  const autoStarted = useRef(false)
+  const planParam = searchParams.get('plan')
+  useEffect(() => {
+    if (autoStarted.current) return
+    if (!companyId) return
+    if (!isValidPlan(planParam)) return
+    autoStarted.current = true
+    startTrial(planParam)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, planParam])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -270,5 +297,14 @@ export default function PricingPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PricingPage() {
+  // useSearchParams() requires a Suspense boundary in the app router.
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <PricingPageInner />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
@@ -8,8 +8,9 @@ import { resolveCompanyForUser } from '@/lib/auth/resolveCompany'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const setCompanyData = usePosStore((s) => s.setCompanyData)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,8 +47,7 @@ export default function LoginPage() {
         throw new Error('Vaš račun ni povezan z nobenim podjetjem')
       }
 
-      // Step 5: store and redirect
-      console.log('[login] step 3: storing company data, redirecting to /' + company.slug + '/dashboard')
+      // Step 5: store data
       setCompanyData({
         companyId: company.id,
         externalCompanyId: company.company_id ?? null,
@@ -55,6 +55,22 @@ export default function LoginPage() {
         companySlug: company.slug,
       })
 
+      // Step 6: redirect. If we arrived here from /pricing (e.g. the visitor
+      // clicked a plan while logged out), go back there with the chosen plan +
+      // interval so checkout resumes automatically.
+      const redirect = searchParams.get('redirect')
+      if (redirect === '/pricing') {
+        const plan = searchParams.get('plan')
+        const interval = searchParams.get('interval')
+        const params = new URLSearchParams()
+        if (plan) params.set('plan', plan)
+        if (interval) params.set('interval', interval)
+        const qs = params.toString()
+        router.push(qs ? `/pricing?${qs}` : '/pricing')
+        return
+      }
+
+      console.log('[login] step 3: storing company data, redirecting to /' + company.slug + '/dashboard')
       router.push(`/${company.slug}/dashboard`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Napaka pri prijavi'
@@ -149,5 +165,14 @@ export default function LoginPage() {
         <p className="text-center text-xs text-gray-400 mt-4">Jedro+ · ZDavPR 2024</p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  // useSearchParams() requires a Suspense boundary in the app router.
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <LoginPageInner />
+    </Suspense>
   )
 }
