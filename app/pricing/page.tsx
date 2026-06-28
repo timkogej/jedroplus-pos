@@ -89,6 +89,10 @@ function PricingPageInner() {
   const [interval, setInterval] = useState<BillingInterval>(
     isValidInterval(intervalParam) ? intervalParam : 'monthly',
   )
+  // A plan pre-selected via the URL (e.g. after a login round-trip). When set,
+  // we highlight that card and show "Nadaljuj z …" instead of "Začni brezplačno".
+  const planParam = searchParams.get('plan')
+  const preselectedPlan: PlanId | null = isValidPlan(planParam) ? planParam : null
   const [companyId, setCompanyId] = useState<string | null>(storedCompanyId)
   const [slug, setSlug] = useState<string | null>(storedSlug)
   const [submitting, setSubmitting] = useState<PlanId | null>(null)
@@ -156,15 +160,14 @@ function PricingPageInner() {
   // After a login round-trip, the URL carries the plan the visitor picked.
   // Auto-resume checkout once the company is resolved. Guard so it runs once.
   const autoStarted = useRef(false)
-  const planParam = searchParams.get('plan')
   useEffect(() => {
     if (autoStarted.current) return
     if (!companyId) return
-    if (!isValidPlan(planParam)) return
+    if (!preselectedPlan) return
     autoStarted.current = true
-    startTrial(planParam)
+    startTrial(preselectedPlan)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, planParam])
+  }, [companyId, preselectedPlan])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -214,6 +217,8 @@ function PricingPageInner() {
           {(['plus', 'pro'] as const).map((planId) => {
             const plan = PLANS[planId]
             const isPro = planId === 'pro'
+            const isPreselected = preselectedPlan === planId
+            const highlight = isPreselected || isPro
             const price = interval === 'monthly' ? plan.monthly : plan.yearly
             return (
               <motion.div
@@ -222,7 +227,7 @@ function PricingPageInner() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: isPro ? 0.08 : 0 }}
                 className={`relative bg-white rounded-2xl p-6 flex flex-col ${
-                  isPro ? 'border-2 border-[#6D5EF7] shadow-lg shadow-[#6D5EF7]/10' : 'border border-gray-200'
+                  highlight ? 'border-2 border-[#6D5EF7] shadow-lg shadow-[#6D5EF7]/10' : 'border border-gray-200'
                 }`}
               >
                 {isPro && (
@@ -247,11 +252,11 @@ function PricingPageInner() {
                   onClick={() => startTrial(planId)}
                   loading={submitting === planId}
                   disabled={!!submitting}
-                  variant={isPro ? 'primary' : 'secondary'}
+                  variant={highlight ? 'primary' : 'secondary'}
                   size="lg"
                   className="w-full mt-5"
                 >
-                  Začni brezplačno
+                  {isPreselected ? `Nadaljuj z ${plan.name}` : 'Začni brezplačno'}
                 </Button>
                 <p className="text-[11px] text-center text-gray-400 mt-2">7-dnevni brezplačni preizkus</p>
 

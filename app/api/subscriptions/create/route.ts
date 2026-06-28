@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase'
-import { requireCompanyAccess } from '@/lib/auth/apiAuth'
+import { authenticateRequest } from '@/lib/auth/apiAuth'
 import {
   getPriceId,
   isValidInterval,
@@ -14,7 +14,12 @@ export const runtime = 'nodejs'
 /**
  * Starts a subscription with a 7-day free trial via Stripe Checkout.
  *
- * Input: { plan: 'plus' | 'pro', interval: 'monthly' | 'yearly', companyId }
+ * Input: { plan: 'plus' | 'pro', interval: 'monthly' | 'yearly' }
+ *
+ * The companyId is NOT taken from the request body — it is derived from the
+ * authenticated user's profiles.default_company_id. This avoids "company not
+ * found" errors when the client hasn't resolved/sent a companyId yet, and is
+ * also safer (a user can only ever subscribe their own company).
  *
  * A card is collected up front in Stripe's hosted Checkout, but the customer is
  * not charged until the trial ends. We return the Checkout Session URL; the
@@ -23,19 +28,23 @@ export const runtime = 'nodejs'
  */
 export async function POST(req: NextRequest) {
   try {
-    const { plan, interval, companyId } = await req.json()
+    const { plan, interval } = await req.json()
     const hasAuthHeader = !!req.headers.get('Authorization')
-    console.log('[subscriptions/create] request', { plan, interval, companyId, hasAuthHeader })
+    console.log('[subscriptions/create] request', { plan, interval, hasAuthHeader })
 
-    const auth = await requireCompanyAccess(req, companyId)
+    // --- Step 1: authenticate the caller (bearer token) --------------------
+    const auth = await authenticateRequest(req)
     if ('response' in auth) {
-      console.error('[subscriptions/create] auth/access failed', {
+      console.error('[subscriptions/create] auth failed', {
         status: auth.response.status,
-        companyId,
         hasAuthHeader,
       })
       return auth.response
     }
+    console.log('[subscriptions/create] step 1: authenticated user', {
+      uid: auth.user.id,
+      email: auth.user.email,
+    })
 
     if (!isValidPlan(plan) || !isValidInterval(interval)) {
       console.error('[subscriptions/create] invalid plan/interval', { plan, interval })
@@ -45,6 +54,26 @@ export async function POST(req: NextRequest) {
     const priceId = getPriceId(plan, interval)
     const supabase = createServiceClient()
 
+    // --- Step 2: derive companyId from the user's profile ------------------
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('default_company_id')
+      .eq('id', auth.user.id)
+      .maybeSingle()
+    console.log('[subscriptions/create] step 2: profiles query', {
+      uid: auth.user.id,
+      profile,
+      profileError: profileError?.message,
+    })
+
+    const companyId = (profile?.default_company_id as string | undefined) ?? undefined
+    console.log('[subscriptions/create] step 3: default_company_id', { companyId })
+
+    if (!companyId) {
+      console.error('[subscriptions/create] no company for user', { uid: auth.user.id })
+      return NextResponse.json({ error: 'Podjetje ni najdeno' }, { status: 404 })
+    }
+
     // --- Resolve company slug (for redirect) + billing email ----------------
     const [{ data: companyData }, { data: company }] = await Promise.all([
       supabase.from('pos_company_data').select('email, company_name').eq('company_id', companyId).maybeSingle(),
@@ -52,6 +81,13 @@ export async function POST(req: NextRequest) {
     ])
     const email = companyData?.email || company?.owner_email || auth.user.email || undefined
     const slug = company?.slug
+    console.log('[subscriptions/create] step 4: company query', {
+      companyId,
+      companyRowFound: !!company,
+      companyDataFound: !!companyData,
+      slug,
+      email,
+    })
 
     if (!slug) {
       console.error('[subscriptions/create] company not found / missing slug', {
