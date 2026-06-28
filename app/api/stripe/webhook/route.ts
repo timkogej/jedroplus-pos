@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase'
-import { createInvoice, findExistingInvoice } from '@/lib/invoice/create-invoice'
+import { createInvoice, findExistingInvoice, DuplicateInvoiceError } from '@/lib/invoice/create-invoice'
 
 // Stripe needs the RAW request body to verify the signature, so this route must
 // never run through a JSON body parser. In the App Router `await req.text()`
@@ -41,13 +41,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // We handle checkout.session.completed as the primary trigger. The full
-    // booking metadata (premiseId/deviceId/chargedAmount/paymentMode) is set on
-    // payment_intent_data.metadata in the checkout route, which lands on the
-    // PaymentIntent — NOT on session.metadata (that only carries appointmentId +
-    // companyId). So for the session event we retrieve the PI to read metadata.
-    // payment_intent.succeeded is accepted as a fallback (metadata is directly
-    // on the PI there). Idempotency guards against handling both for one payment.
+    // checkout.session.completed is the SINGLE source of truth for invoice
+    // creation. It fires reliably for every completed Checkout session, so we do
+    // NOT also handle payment_intent.succeeded — handling both would create two
+    // invoices for one payment.
+    //
+    // The full booking metadata (premiseId/deviceId/chargedAmount/paymentMode) is
+    // set on payment_intent_data.metadata in the checkout route, which lands on
+    // the PaymentIntent — NOT on session.metadata (that only carries
+    // appointmentId + companyId). So we retrieve the PI to read the full metadata.
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
 
@@ -72,17 +74,9 @@ export async function POST(req: NextRequest) {
       return await processBookingPayment(metadata, piId)
     }
 
-    if (event.type === 'payment_intent.succeeded') {
-      const pi = event.data.object as Stripe.PaymentIntent
-      const metadata = (pi.metadata ?? {}) as BookingMetadata
-      // Only process PaymentIntents that originated from a booking checkout.
-      if (!metadata.appointmentId) {
-        return NextResponse.json({ received: true })
-      }
-      return await processBookingPayment(metadata, pi.id)
-    }
-
-    // Unhandled event types: acknowledge so Stripe stops retrying.
+    // All other event types (including payment_intent.succeeded) are intentionally
+    // ignored — invoice creation happens only on checkout.session.completed.
+    // Acknowledge so Stripe stops retrying.
     return NextResponse.json({ received: true })
   } catch (err) {
     // The payment succeeded but our processing (e.g. invoice creation) failed.
@@ -186,24 +180,36 @@ async function processBookingPayment(
   const notes = isDeposit ? 'Predplačilo (polog)' : null
 
   // --- 6. Issue the invoice (also flags Termini Plačano / ID računa / Način)
-  await createInvoice({
-    companyId,
-    appointmentId,
-    premiseId: premiseId!,
-    deviceId: deviceId!,
-    paymentMethod: 'online',
-    items,
-    subtotal,
-    vatRate,
-    vatAmount,
-    total,
-    discountType: null,
-    discountAmount: 0,
-    buyer,
-    notes,
-    currency,
-    stripePaymentIntentId,
-  })
+  try {
+    await createInvoice({
+      companyId,
+      appointmentId,
+      premiseId: premiseId!,
+      deviceId: deviceId!,
+      paymentMethod: 'online',
+      items,
+      subtotal,
+      vatRate,
+      vatAmount,
+      total,
+      discountType: null,
+      discountAmount: 0,
+      buyer,
+      notes,
+      currency,
+      stripePaymentIntentId,
+    })
+  } catch (err) {
+    // The unique_appointment_invoice constraint fired (error 23505): a
+    // concurrent webhook delivery already issued the invoice between our
+    // findExistingInvoice check and this insert. Treat as already processed and
+    // ack with 200 so Stripe does not retry.
+    if (err instanceof DuplicateInvoiceError) {
+      console.log('[stripe/webhook] invoice already exists (unique violation), skipping:', appointmentId)
+      return NextResponse.json({ received: true, alreadyProcessed: true })
+    }
+    throw err
+  }
 
   // --- 7. Move the appointment from pending_payment -> scheduled ----------
   // createInvoice sets Plačano/ID računa/Način plačila but NOT Status.

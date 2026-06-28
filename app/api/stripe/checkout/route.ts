@@ -10,7 +10,9 @@ function resolveAllowedOrigin(origin: string | null): string {
   const allowed = [
     process.env.BOOKING_ORIGIN,
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://localhost:5173',
+    'https://booking.jedroplus.com',
   ].filter(Boolean) as string[]
 
   if (origin && allowed.includes(origin)) return origin
@@ -22,7 +24,7 @@ function corsHeaders(origin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': resolveAllowedOrigin(origin),
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     Vary: 'Origin',
   }
 }

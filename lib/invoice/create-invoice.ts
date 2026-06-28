@@ -48,6 +48,19 @@ export class InvoiceValidationError extends Error {
   }
 }
 
+/**
+ * Thrown when the insert hits the unique_appointment_invoice constraint
+ * (Postgres error 23505) — i.e. another invoice for this appointment already
+ * exists (race between two concurrent webhook deliveries). Callers should treat
+ * this as "already processed" rather than a hard failure.
+ */
+export class DuplicateInvoiceError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'DuplicateInvoiceError'
+  }
+}
+
 export interface CreateInvoiceResult {
   invoiceId: string
   invoiceNumber: string
@@ -192,7 +205,14 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     .select()
     .single()
 
-  if (invoiceError) throw new Error(invoiceError.message)
+  if (invoiceError) {
+    // 23505 = unique_violation. Means unique_appointment_invoice already has an
+    // invoice for this appointment (concurrent webhook delivery beat us to it).
+    if ((invoiceError as { code?: string }).code === '23505') {
+      throw new DuplicateInvoiceError(invoiceError.message)
+    }
+    throw new Error(invoiceError.message)
+  }
 
   await supabase.from('pos_invoice_items').insert(
     items.map((item) => ({
