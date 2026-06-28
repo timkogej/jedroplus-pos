@@ -1,6 +1,8 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import Link from 'next/link'
+import SubscriptionSuccessToast from '@/components/dashboard/SubscriptionSuccessToast'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
@@ -120,6 +122,9 @@ export default async function DashboardPage({ params }: { params: { slug: string
 
   return (
     <div className="flex flex-col min-h-screen">
+      <Suspense fallback={null}>
+        <SubscriptionSuccessToast />
+      </Suspense>
       <Header
         slug={params.slug}
         title="Pregled"

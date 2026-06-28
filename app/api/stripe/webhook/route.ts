@@ -3,6 +3,7 @@ import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase'
 import { createInvoice, findExistingInvoice, DuplicateInvoiceError } from '@/lib/invoice/create-invoice'
+import { TRIAL_DAYS } from '@/lib/subscription-plans'
 
 // Stripe needs the RAW request body to verify the signature, so this route must
 // never run through a JSON body parser. In the App Router `await req.text()`
@@ -53,6 +54,15 @@ export async function POST(req: NextRequest) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
 
+      // Subscription Checkout (the /pricing trial flow) lands here too, but in
+      // `subscription` mode. Trial sessions have payment_status 'no_payment_required'
+      // (no charge yet), so they are handled separately from booking payments.
+      if (session.mode === 'subscription') {
+        await handleSubscriptionCheckout(session)
+        return NextResponse.json({ received: true })
+      }
+
+      // --- Booking payments (one-off, mode 'payment') ----------------------
       // Only act on actually-paid sessions.
       if (session.payment_status !== 'paid') {
         console.log('[stripe/webhook] session not paid, ignoring:', session.id)
@@ -125,6 +135,64 @@ function subscriptionPeriod(subscription: Stripe.Subscription): {
   return {
     start: isoFromUnix(item?.current_period_start),
     end: isoFromUnix(item?.current_period_end),
+  }
+}
+
+// Subscription Checkout completed → create/refresh the pos_subscriptions row.
+// This is the source of truth for the trial flow started on /pricing. The
+// subscription itself is created by Stripe with a 7-day trial, so the row is
+// written as 'trialing'. Later lifecycle events (created/updated/invoice paid)
+// keep status and billing periods in sync.
+async function handleSubscriptionCheckout(session: Stripe.Checkout.Session): Promise<void> {
+  const companyId = session.metadata?.companyId
+  const plan = session.metadata?.plan
+  const interval = session.metadata?.interval
+
+  const subscriptionId =
+    typeof session.subscription === 'string'
+      ? session.subscription
+      : session.subscription?.id ?? null
+  const customerId =
+    typeof session.customer === 'string'
+      ? session.customer
+      : session.customer?.id ?? null
+
+  if (!companyId || !subscriptionId) {
+    console.error('[stripe/webhook] subscription checkout missing companyId/subscriptionId', {
+      companyId,
+      subscriptionId,
+    })
+    return
+  }
+
+  // Prefer the real trial end from the subscription; fall back to now + 7 days.
+  let trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString()
+  try {
+    const sub = await stripe.subscriptions.retrieve(subscriptionId)
+    trialEndsAt = isoFromUnix(sub.trial_end) ?? trialEndsAt
+  } catch (err) {
+    console.error('[stripe/webhook] subscription retrieve failed:', err instanceof Error ? err.message : err)
+  }
+
+  const supabase = createServiceClient()
+  const { error } = await supabase.from('pos_subscriptions').upsert(
+    {
+      company_id: companyId,
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      plan,
+      billing_interval: interval,
+      status: 'trialing',
+      trial_ends_at: trialEndsAt,
+      canceled_at: null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'company_id' }
+  )
+
+  if (error) {
+    console.error('[stripe/webhook] subscription checkout upsert failed:', error.message)
+    throw new Error(error.message)
   }
 }
 

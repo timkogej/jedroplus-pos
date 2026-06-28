@@ -125,12 +125,14 @@ export default function PricingPage() {
         body: JSON.stringify({ plan, interval, companyId }),
       })
       const data = await res.json()
-      if (!res.ok) {
+      if (!res.ok || !data.url) {
         setError(data.error || 'Napaka pri začetku naročnine')
         setSubmitting(null)
         return
       }
-      router.push(`/${slug}/dashboard`)
+      // Redirect to Stripe's hosted Checkout. Keep the loading state on the
+      // button — the browser navigates away.
+      window.location.href = data.url
     } catch {
       setError('Napaka pri začetku naročnine')
       setSubmitting(null)
