@@ -147,11 +147,6 @@ export default function PricingPage() {
           transition={{ duration: 0.4 }}
           className="text-center mb-10"
         >
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl gradient-bg mb-5">
-            <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-              <path d="M16 4V28M4 16H28" stroke="white" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-          </div>
           <h1 className="text-3xl md:text-4xl font-semibold text-gray-900">
             Izberite svoj <span className="gradient-text">paket</span>
           </h1>
