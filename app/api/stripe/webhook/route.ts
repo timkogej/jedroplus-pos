@@ -74,6 +74,20 @@ export async function POST(req: NextRequest) {
       return await processBookingPayment(metadata, piId)
     }
 
+    // --- Subscription lifecycle ---------------------------------------------
+    switch (event.type) {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        await handleSubscriptionEvent(event.type, event.data.object as Stripe.Subscription)
+        return NextResponse.json({ received: true })
+
+      case 'invoice.payment_succeeded':
+      case 'invoice.payment_failed':
+        await handleInvoiceEvent(event.type, event.data.object as Stripe.Invoice)
+        return NextResponse.json({ received: true })
+    }
+
     // All other event types (including payment_intent.succeeded) are intentionally
     // ignored — invoice creation happens only on checkout.session.completed.
     // Acknowledge so Stripe stops retrying.
@@ -85,6 +99,109 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'webhook processing error'
     console.error('[stripe/webhook] processing error:', message)
     return new NextResponse('Webhook processing failed', { status: 500 })
+  }
+}
+
+// --- Subscription helpers ---------------------------------------------------
+
+// Stripe's status strings map almost 1:1 to our column; coerce the terminal
+// "incomplete_expired" to "canceled" so the UI/guard treats it consistently.
+function mapStatus(stripeStatus: Stripe.Subscription.Status): string {
+  return stripeStatus === 'incomplete_expired' ? 'canceled' : stripeStatus
+}
+
+function isoFromUnix(seconds: number | null | undefined): string | null {
+  return seconds ? new Date(seconds * 1000).toISOString() : null
+}
+
+// In the current Stripe API the billing period lives on each subscription item
+// (not on the subscription itself). For our single-item subscriptions the first
+// item carries the canonical period.
+function subscriptionPeriod(subscription: Stripe.Subscription): {
+  start: string | null
+  end: string | null
+} {
+  const item = subscription.items?.data?.[0]
+  return {
+    start: isoFromUnix(item?.current_period_start),
+    end: isoFromUnix(item?.current_period_end),
+  }
+}
+
+async function handleSubscriptionEvent(
+  type: 'customer.subscription.created' | 'customer.subscription.updated' | 'customer.subscription.deleted',
+  subscription: Stripe.Subscription
+): Promise<void> {
+  const supabase = createServiceClient()
+
+  const period = subscriptionPeriod(subscription)
+  const update: Record<string, unknown> = {
+    status: type === 'customer.subscription.deleted' ? 'canceled' : mapStatus(subscription.status),
+    current_period_start: period.start,
+    current_period_end: period.end,
+    trial_ends_at: isoFromUnix(subscription.trial_end),
+    updated_at: new Date().toISOString(),
+  }
+
+  if (type === 'customer.subscription.deleted') {
+    update.canceled_at = isoFromUnix(subscription.canceled_at) ?? new Date().toISOString()
+  } else if (subscription.cancel_at_period_end) {
+    update.canceled_at = isoFromUnix(subscription.canceled_at) ?? new Date().toISOString()
+  } else {
+    // Not pending cancellation (e.g. the user resumed via the Stripe portal) —
+    // clear any previously stamped cancellation so the banner/guard reset.
+    update.canceled_at = null
+  }
+
+  const { error } = await supabase
+    .from('pos_subscriptions')
+    .update(update)
+    .eq('stripe_subscription_id', subscription.id)
+
+  if (error) {
+    console.error('[stripe/webhook] subscription update failed:', error.message)
+    throw new Error(error.message)
+  }
+}
+
+async function handleInvoiceEvent(
+  type: 'invoice.payment_succeeded' | 'invoice.payment_failed',
+  invoice: Stripe.Invoice
+): Promise<void> {
+  const subscriptionId =
+    typeof (invoice as unknown as { subscription?: string | Stripe.Subscription }).subscription === 'string'
+      ? ((invoice as unknown as { subscription: string }).subscription)
+      : ((invoice as unknown as { subscription?: Stripe.Subscription }).subscription?.id ?? null)
+
+  if (!subscriptionId) return // not a subscription invoice — ignore
+
+  const supabase = createServiceClient()
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+
+  if (type === 'invoice.payment_failed') {
+    update.status = 'past_due'
+  } else {
+    // Payment succeeded → the subscription is fully active. Refresh periods
+    // from the live subscription so renewal dates stay accurate.
+    update.status = 'active'
+    try {
+      const sub = await stripe.subscriptions.retrieve(subscriptionId)
+      const period = subscriptionPeriod(sub)
+      update.current_period_start = period.start
+      update.current_period_end = period.end
+    } catch (err) {
+      console.error('[stripe/webhook] subscription retrieve failed:', err instanceof Error ? err.message : err)
+    }
+  }
+
+  const { error } = await supabase
+    .from('pos_subscriptions')
+    .update(update)
+    .eq('stripe_subscription_id', subscriptionId)
+
+  if (error) {
+    console.error('[stripe/webhook] invoice event update failed:', error.message)
+    throw new Error(error.message)
   }
 }
 

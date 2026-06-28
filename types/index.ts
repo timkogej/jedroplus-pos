@@ -142,6 +142,27 @@ export interface PosCompanyData {
   updated_at: string
 }
 
+export type SubscriptionStatus =
+  | 'trialing'
+  | 'active'
+  | 'past_due'
+  | 'canceled'
+  | 'incomplete'
+  | 'unpaid'
+
+export interface PosSubscription {
+  company_id: string
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  plan: 'plus' | 'pro' | null
+  billing_interval: 'monthly' | 'yearly' | null
+  status: SubscriptionStatus | null
+  trial_ends_at: string | null
+  current_period_start: string | null
+  current_period_end: string | null
+  canceled_at: string | null
+}
+
 export interface Appointment {
   id: string
   'ID podjetja': string
