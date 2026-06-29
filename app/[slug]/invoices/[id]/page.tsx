@@ -29,16 +29,36 @@ export default function InvoiceDetailPage() {
   const [stornoError, setStornoError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const [{ data: comp }, { data: inv }] = await Promise.all([
-      supabase.from('companies').select('id, name').eq('slug', slug).single(),
-      supabase.from('pos_invoices').select('*, pos_invoice_items(*)').eq('id', id).single(),
-    ])
+    // Resolve the company first (the slug is guaranteed by AuthGuard to be the
+    // logged-in user's own company), then scope the invoice fetch to it. The
+    // company_id filter is defense-in-depth on top of RLS: it prevents viewing
+    // another company's invoice by guessing its id in the URL.
+    const { data: comp } = await supabase
+      .from('companies')
+      .select('id, name')
+      .eq('slug', slug)
+      .single()
     setCompany(comp)
-    setInvoice(inv)
-    if (comp) {
-      const { data: cd } = await supabase.from('pos_company_data').select('*').eq('company_id', comp.id).maybeSingle()
-      setCompanyData(cd)
+
+    if (!comp) {
+      setLoading(false)
+      return
     }
+
+    const { data: inv } = await supabase
+      .from('pos_invoices')
+      .select('*, pos_invoice_items(*)')
+      .eq('id', id)
+      .eq('company_id', comp.id)
+      .single()
+    setInvoice(inv)
+
+    const { data: cd } = await supabase
+      .from('pos_company_data')
+      .select('*')
+      .eq('company_id', comp.id)
+      .maybeSingle()
+    setCompanyData(cd)
     setLoading(false)
   }, [id, slug])
 
