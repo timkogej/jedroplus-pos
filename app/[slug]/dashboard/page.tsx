@@ -1,8 +1,10 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import SubscriptionSuccessToast from '@/components/dashboard/SubscriptionSuccessToast'
+import OnboardingCompleteToast from '@/components/dashboard/OnboardingCompleteToast'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
@@ -37,6 +39,30 @@ export default async function DashboardPage({ params }: { params: { slug: string
     .single()
 
   if (!company) redirect('/login')
+
+  // --- Onboarding gate ----------------------------------------------------
+  // New companies (just subscribed) have no company data or premises yet. Send
+  // them through the onboarding flow unless they've explicitly skipped it
+  // (cookie set by the "Preskočite nastavitev" link).
+  const [{ data: onboardingCompanyData }, { count: premiseCount }, { count: activeCertCount }] = await Promise.all([
+    supabase.from('pos_company_data').select('id').eq('company_id', company.id).maybeSingle(),
+    supabase.from('pos_premises').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
+    supabase
+      .from('pos_certificates')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', company.id)
+      .eq('is_active', true),
+  ])
+
+  const onboardingSkipped = cookies().get('onboarding_skipped')?.value === params.slug
+  const needsOnboarding = !onboardingCompanyData || (premiseCount ?? 0) === 0
+  if (needsOnboarding && !onboardingSkipped) {
+    redirect(`/${params.slug}/onboarding/step1`)
+  }
+
+  // Show the FURS reminder banner whenever there's no active certificate yet —
+  // until then invoices are issued in FURS test mode.
+  const showFursBanner = (activeCertCount ?? 0) === 0
 
   const now = new Date()
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
@@ -124,6 +150,7 @@ export default async function DashboardPage({ params }: { params: { slug: string
     <div className="flex flex-col min-h-screen">
       <Suspense fallback={null}>
         <SubscriptionSuccessToast />
+        <OnboardingCompleteToast />
       </Suspense>
       <Header
         slug={params.slug}
@@ -136,6 +163,24 @@ export default async function DashboardPage({ params }: { params: { slug: string
       />
       <main className="flex-1 p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* FURS certificate reminder — shown until an active certificate exists */}
+          {showFursBanner && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-amber-900">Za produkcijsko delovanje dodajte FURS certifikat</p>
+                  <p className="mt-0.5 text-xs text-amber-700">V testnem načinu so računi označeni kot TESTNI.</p>
+                </div>
+              </div>
+              <Link href={`/${params.slug}/settings/certificate`} className="flex-shrink-0">
+                <Button size="sm">Dodaj certifikat →</Button>
+              </Link>
+            </div>
+          )}
+
           {/* Today's stats */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <StatCard label="Prihodki danes" value={eur(todayTotal)} sub={`${todayRevenueRows.length} računov`} />
@@ -241,12 +286,12 @@ export default async function DashboardPage({ params }: { params: { slug: string
                 {
                   href: `/${params.slug}/settings/certificate`,
                   label: 'Naložite FURS certifikat',
-                  done: false,
+                  done: (activeCertCount ?? 0) > 0,
                 },
                 {
                   href: `/${params.slug}/settings/premises`,
                   label: 'Dodajte poslovni prostor in napravo',
-                  done: false,
+                  done: (premiseCount ?? 0) > 0,
                 },
                 {
                   href: `/${params.slug}/invoices/new`,
