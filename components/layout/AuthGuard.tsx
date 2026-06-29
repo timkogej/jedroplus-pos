@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
 import { resolveCompanyForUser } from '@/lib/auth/resolveCompany'
@@ -12,6 +12,8 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ slug, children }: AuthGuardProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [ready, setReady] = useState(false)
   const setCompanyData = usePosStore((s) => s.setCompanyData)
   const clearCompanyData = usePosStore((s) => s.clearCompanyData)
@@ -25,6 +27,16 @@ export default function AuthGuard({ slug, children }: AuthGuardProps) {
     if (hasRun.current) return
     hasRun.current = true
 
+    // Send the user to /login but remember where they were headed (e.g. the
+    // dashboard after a Stripe Checkout) plus the subscription=success flag, so
+    // after re-login they land back here and still see the success toast.
+    function goToLogin() {
+      const params = new URLSearchParams({ redirect: pathname })
+      const subscription = searchParams.get('subscription')
+      if (subscription) params.set('subscription', subscription)
+      router.replace(`/login?${params.toString()}`)
+    }
+
     async function verify() {
       // Fast path: store already has this company fully resolved
       if (storedSlug === slug && storedCompanyId) {
@@ -36,14 +48,14 @@ export default function AuthGuard({ slug, children }: AuthGuardProps) {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user?.id) {
-        router.replace('/login')
+        goToLogin()
         return
       }
 
       const company = await resolveCompanyForUser(supabase, user.id)
 
       if (!company) {
-        router.replace('/login')
+        goToLogin()
         return
       }
 
@@ -64,7 +76,7 @@ export default function AuthGuard({ slug, children }: AuthGuardProps) {
     }
 
     verify()
-  }, [slug, storedSlug, storedCompanyId, router, setCompanyData, clearCompanyData])
+  }, [slug, storedSlug, storedCompanyId, router, pathname, searchParams, setCompanyData, clearCompanyData])
 
   if (!ready) {
     return (

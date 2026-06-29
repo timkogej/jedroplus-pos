@@ -70,6 +70,15 @@ function LoginPageInner() {
         return
       }
 
+      // Any other internal redirect target (e.g. the dashboard, after a Stripe
+      // Checkout where the session expired on Stripe's page). Carry the
+      // subscription=success flag through so the success toast still appears.
+      if (redirect && redirect.startsWith('/')) {
+        const subscription = searchParams.get('subscription')
+        router.push(subscription ? `${redirect}?subscription=${subscription}` : redirect)
+        return
+      }
+
       console.log('[login] step 3: storing company data, redirecting to /' + company.slug + '/dashboard')
       router.push(`/${company.slug}/dashboard`)
     } catch (err: unknown) {
