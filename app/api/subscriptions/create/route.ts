@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase'
-import { authenticateRequest } from '@/lib/auth/apiAuth'
 import {
   getPriceId,
   isValidInterval,
@@ -28,23 +27,42 @@ export const runtime = 'nodejs'
  */
 export async function POST(req: NextRequest) {
   try {
-    const { plan, interval } = await req.json()
-    const hasAuthHeader = !!req.headers.get('Authorization')
-    console.log('[subscriptions/create] request', { plan, interval, hasAuthHeader })
+    const supabase = createServiceClient()
 
-    // --- Step 1: authenticate the caller (bearer token) --------------------
-    const auth = await authenticateRequest(req)
-    if ('response' in auth) {
-      console.error('[subscriptions/create] auth failed', {
-        status: auth.response.status,
-        hasAuthHeader,
-      })
-      return auth.response
+    const authHeader = req.headers.get('Authorization')
+    console.log('1. Auth header present:', !!authHeader)
+
+    const token = authHeader?.replace('Bearer ', '')
+    console.log('2. Token present:', !!token)
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token || '')
+    console.log('3. User:', user?.id, 'Auth error:', authError?.message)
+
+    if (!user) {
+      return NextResponse.json({ error: 'No user found' }, { status: 401 })
     }
-    console.log('[subscriptions/create] step 1: authenticated user', {
-      uid: auth.user.id,
-      email: auth.user.email,
-    })
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('default_company_id')
+      .eq('id', user.id)
+      .single()
+    console.log('4. Profile:', profile, 'Profile error:', profileError?.message)
+
+    if (!profile?.default_company_id) {
+      return NextResponse.json({ error: 'No company in profile' }, { status: 404 })
+    }
+
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('id, slug')
+      .eq('id', profile.default_company_id)
+      .single()
+    console.log('5. Company:', company, 'Company error:', companyError?.message)
+
+    // ---------------------------------------------------------------------
+    const { plan, interval } = await req.json()
+    console.log('[subscriptions/create] request', { plan, interval })
 
     if (!isValidPlan(plan) || !isValidInterval(interval)) {
       console.error('[subscriptions/create] invalid plan/interval', { plan, interval })
@@ -52,48 +70,22 @@ export async function POST(req: NextRequest) {
     }
 
     const priceId = getPriceId(plan, interval)
-    const supabase = createServiceClient()
+    const companyId = profile.default_company_id as string
 
-    // --- Step 2: derive companyId from the user's profile ------------------
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('default_company_id')
-      .eq('id', auth.user.id)
+    // --- Resolve billing email (slug already fetched above) ----------------
+    const { data: companyData } = await supabase
+      .from('pos_company_data')
+      .select('email, company_name')
+      .eq('company_id', companyId)
       .maybeSingle()
-    console.log('[subscriptions/create] step 2: profiles query', {
-      uid: auth.user.id,
-      profile,
-      profileError: profileError?.message,
-    })
-
-    const companyId = (profile?.default_company_id as string | undefined) ?? undefined
-    console.log('[subscriptions/create] step 3: default_company_id', { companyId })
-
-    if (!companyId) {
-      console.error('[subscriptions/create] no company for user', { uid: auth.user.id })
-      return NextResponse.json({ error: 'Podjetje ni najdeno' }, { status: 404 })
-    }
-
-    // --- Resolve company slug (for redirect) + billing email ----------------
-    const [{ data: companyData }, { data: company }] = await Promise.all([
-      supabase.from('pos_company_data').select('email, company_name').eq('company_id', companyId).maybeSingle(),
-      supabase.from('companies').select('owner_email, name, slug').eq('id', companyId).maybeSingle(),
-    ])
-    const email = companyData?.email || company?.owner_email || auth.user.email || undefined
+    const email = companyData?.email || user.email || undefined
     const slug = company?.slug
-    console.log('[subscriptions/create] step 4: company query', {
-      companyId,
-      companyRowFound: !!company,
-      companyDataFound: !!companyData,
-      slug,
-      email,
-    })
 
     if (!slug) {
       console.error('[subscriptions/create] company not found / missing slug', {
         companyId,
         companyRowFound: !!company,
-        companyDataFound: !!companyData,
+        companyError: companyError?.message,
       })
       return NextResponse.json({ error: 'Podjetje ni najdeno' }, { status: 404 })
     }
