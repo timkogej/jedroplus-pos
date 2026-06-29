@@ -179,6 +179,10 @@ function PricingPageInner() {
           transition={{ duration: 0.4 }}
           className="text-center mb-10"
         >
+          <p className="text-lg md:text-xl font-semibold mb-2">
+            <span className="gradient-text">Jedro+</span>{' '}
+            <span className="text-gray-900">Davčna blagajna</span>
+          </p>
           <h1 className="text-3xl md:text-4xl font-semibold text-gray-900">
             Izberite svoj <span className="gradient-text">paket</span>
           </h1>
