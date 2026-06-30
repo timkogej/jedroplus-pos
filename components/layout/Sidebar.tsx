@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -19,6 +20,29 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
   const router = useRouter()
   const clearCompanyData = usePosStore((s) => s.clearCompanyData)
   const base = `/${slug}`
+
+  // Warning badge on "Z-poročilo" when the day isn't closed yet and it's past
+  // 18:00 — a nudge to run the daily closing.
+  const [zReportWarning, setZReportWarning] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    async function check() {
+      if (new Date().getHours() < 18) return
+      const { data: company } = await supabase.from('companies').select('id').eq('slug', slug).single()
+      if (!company || cancelled) return
+      const now = new Date()
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      const { data: report } = await supabase
+        .from('pos_z_reports')
+        .select('id')
+        .eq('company_id', company.id)
+        .eq('report_date', today)
+        .maybeSingle()
+      if (!cancelled) setZReportWarning(!report)
+    }
+    check()
+    return () => { cancelled = true }
+  }, [slug, pathname])
 
   async function handleLogout() {
     clearCompanyData()
@@ -60,6 +84,16 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
       icon: (
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+      ),
+    },
+    {
+      href: `${base}/z-report`,
+      label: 'Z-poročilo',
+      badge: zReportWarning,
+      icon: (
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
     },
@@ -118,6 +152,9 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
                   </span>
                 </NavIcon>
                 <span>{item.label}</span>
+                {'badge' in item && item.badge && (
+                  <span className="ml-auto w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Blagajna še ni zaključena" />
+                )}
               </div>
             </Link>
           )

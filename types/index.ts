@@ -239,3 +239,33 @@ export interface FursResponse {
   error: string | null
   rawResponse: string | null
 }
+
+export interface ZReport {
+  id: string
+  company_id: string
+  premise_id: string | null
+  device_id: string | null
+  report_date: string // YYYY-MM-DD
+  report_number: number
+  opened_at: string | null
+  closed_at: string | null
+  total_revenue: number
+  total_invoices: number
+  total_cash: number
+  total_card: number
+  total_transfer: number
+  total_online: number
+  total_storno: number
+  total_storno_count: number
+  vat_base_22: number
+  vat_amount_22: number
+  vat_base_95: number
+  vat_amount_95: number
+  vat_base_0: number
+  status: string
+  furs_confirmed: boolean
+  furs_response: Record<string, unknown> | null
+  pdf_url: string | null
+  notes: string | null
+  created_at: string
+}

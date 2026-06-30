@@ -120,6 +120,19 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
   const { invoiceNumber } = await generateInvoiceNumber(companyId, formatConfig, premise.premise_id, device.device_id)
   const issueDate = new Date()
 
+  // A day that's already been closed with a Z-report is locked — no new invoices
+  // may be added for it (ZDavPR daily-closing integrity).
+  const issueDateStr = `${issueDate.getFullYear()}-${String(issueDate.getMonth() + 1).padStart(2, '0')}-${String(issueDate.getDate()).padStart(2, '0')}`
+  const { data: closedDay } = await supabase
+    .from('pos_z_reports')
+    .select('id')
+    .eq('company_id', companyId)
+    .eq('report_date', issueDateStr)
+    .maybeSingle()
+  if (closedDay) {
+    throw new InvoiceValidationError('Blagajna za ta dan je že zaključena (Z-poročilo). Računov ni mogoče dodajati.')
+  }
+
   const { data: certRow } = await supabase
     .from('pos_certificates')
     .select('certificate_data, certificate_password, tax_number')

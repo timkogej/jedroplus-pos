@@ -6,6 +6,17 @@ import type { PosPremise, PosDevice, PosSettings, PosCompanyData, InvoiceItemFor
 
 export const revalidate = 0
 
+/** Coerce a DB price value (which may arrive as a string, possibly with a
+ *  comma decimal separator) into a finite number. Falls back to 0. */
+function toPrice(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string') {
+    const n = parseFloat(value.replace(',', '.'))
+    return Number.isFinite(n) ? n : 0
+  }
+  return 0
+}
+
 interface SearchParams {
   appointmentId?: string
   service?: string
@@ -127,7 +138,7 @@ export default async function NewInvoicePage({
       items.push({
         description: (svc1Result.data['Naziv'] as string) ?? decodeURIComponent(searchParams.service ?? 'Storitev'),
         quantity: 1,
-        unit_price: (svc1Result.data['Cena'] as number) ?? 0,
+        unit_price: toPrice(svc1Result.data['Cena']),
         vat_rate: defaultVat,
       })
     } else {
@@ -144,7 +155,7 @@ export default async function NewInvoicePage({
       items.push({
         description: (svc2Result.data['Naziv'] as string) ?? 'Storitev 2',
         quantity: 1,
-        unit_price: (svc2Result.data['Cena'] as number) ?? 0,
+        unit_price: toPrice(svc2Result.data['Cena']),
         vat_rate: defaultVat,
       })
     }
@@ -153,7 +164,7 @@ export default async function NewInvoicePage({
       items.push({
         description: (svc3Result.data['Naziv'] as string) ?? 'Storitev 3',
         quantity: 1,
-        unit_price: (svc3Result.data['Cena'] as number) ?? 0,
+        unit_price: toPrice(svc3Result.data['Cena']),
         vat_rate: defaultVat,
       })
     }
