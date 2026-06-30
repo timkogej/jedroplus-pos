@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import ExportInvoicesButton from '@/components/invoice/ExportInvoicesButton'
+import AccountingExportButton from '@/components/invoice/AccountingExportButton'
 import type { PosInvoice } from '@/types'
 
 export const revalidate = 0
@@ -34,6 +35,14 @@ export default async function InvoicesPage({ params }: { params: { slug: string 
 
   if (!company) redirect('/login')
 
+  const { data: subscription } = await supabase
+    .from('pos_subscriptions')
+    .select('plan')
+    .eq('company_id', company.id)
+    .maybeSingle()
+
+  const isPro = subscription?.plan === 'pro'
+
   const { data: invoices } = await supabase
     .from('pos_invoices')
     .select('*')
@@ -48,6 +57,7 @@ export default async function InvoicesPage({ params }: { params: { slug: string 
         title="Računi"
         action={
           <div className="flex items-center gap-2">
+            <AccountingExportButton companyId={company.id} isPro={isPro} />
             <ExportInvoicesButton companyId={company.id} />
             <Link href={`/${params.slug}/invoices/new`}>
               <Button size="sm">+ Nov račun</Button>
