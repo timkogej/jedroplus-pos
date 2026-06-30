@@ -102,6 +102,25 @@ export default async function DashboardPage({ params }: { params: { slug: string
   const invoicedIds = new Set((invoicedAppts ?? []).map((i) => i.appointment_id))
   const uninvoicedCount = (pendingAppointments ?? []).filter((a) => !invoicedIds.has(a.id)).length
 
+  // Loyalty: count distinct clients with a positive balance (only if enabled).
+  const { data: loyaltySettings } = await supabase
+    .from('pos_settings')
+    .select('loyalty_enabled')
+    .eq('company_id', company.id)
+    .maybeSingle()
+  let loyaltyClientCount = 0
+  if (loyaltySettings?.loyalty_enabled) {
+    const { data: loyaltyRows } = await supabase
+      .from('pos_loyalty_points')
+      .select('client_email, points')
+      .eq('company_id', company.id)
+    const balances = new Map<string, number>()
+    for (const r of loyaltyRows ?? []) {
+      balances.set(r.client_email, (balances.get(r.client_email) ?? 0) + (r.points as number))
+    }
+    loyaltyClientCount = Array.from(balances.values()).filter((b) => b > 0).length
+  }
+
   const rows = (statInvoices ?? []) as StatRow[]
   const inRange = (r: StatRow, from: Date, to?: Date) => {
     const d = new Date(r.invoice_date)
@@ -195,6 +214,13 @@ export default async function DashboardPage({ params }: { params: { slug: string
               accent={stornoTodayCount > 0 ? 'red' : undefined}
             />
           </div>
+
+          {/* Loyalty */}
+          {loyaltySettings?.loyalty_enabled && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <StatCard label="🎁 Aktivne loyalty stranke" value={String(loyaltyClientCount)} sub="strank s točkami" />
+            </div>
+          )}
 
           {/* Revenue chart */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">

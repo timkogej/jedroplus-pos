@@ -19,6 +19,8 @@ function getResend(): Resend {
 export interface EmailOptions {
   brandPrimary?: string
   brandSecond?: string
+  loyaltyRedeemed?: { points: number; amount: number }
+  loyaltyEarned?: { points: number; balance: number }
 }
 
 export async function sendInvoiceEmail(
@@ -92,6 +94,22 @@ function buildEmailHtml(invoice: PosInvoice, companyName: string, options: Email
   const amount = invoice.total.toLocaleString('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const clientName = invoice.client_name ? escapeHtml(invoice.client_name) : null
 
+  const loyaltyRows = `${
+    options.loyaltyRedeemed
+      ? `<tr>
+        <td style="padding:13px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;color:#6b7280;font-weight:500;">Unovcene tocke</td>
+        <td style="padding:13px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;color:#0a0a0a;font-weight:500;text-align:right;">${options.loyaltyRedeemed.points} (-${options.loyaltyRedeemed.amount.toLocaleString('sl-SI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR)</td>
+      </tr>`
+      : ''
+  }${
+    options.loyaltyEarned
+      ? `<tr>
+        <td style="padding:13px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;color:#6b7280;font-weight:500;">Zasluzene tocke</td>
+        <td style="padding:13px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;color:#0a0a0a;font-weight:500;text-align:right;">+${options.loyaltyEarned.points} (stanje: ${options.loyaltyEarned.balance})</td>
+      </tr>`
+      : ''
+  }`
+
   const eorRow = invoice.eor
     ? `<tr>
         <td style="padding:13px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;color:#6b7280;font-weight:500;">EOR</td>
@@ -152,6 +170,7 @@ function buildEmailHtml(invoice: PosInvoice, companyName: string, options: Email
                   <td style="padding:13px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;color:#0a0a0a;font-weight:500;text-align:right;">${formatPaymentMethod(invoice.payment_method)}</td>
                 </tr>
                 ${eorRow}
+                ${loyaltyRows}
                 <tr style="background-color:#fafafa;">
                   <td style="padding:13px 16px;font-size:13px;color:#374151;font-weight:600;">Znesek</td>
                   <td style="padding:13px 16px;font-size:18px;font-weight:700;color:${brand};letter-spacing:-0.3px;text-align:right;">${amount} EUR</td>

@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       items,
       notes,
       currency = 'EUR',
+      loyaltyRedeemRecordId,
     } = body
 
     // --- Authentication + company ownership --------------------------------
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
       },
       notes,
       currency,
+      loyaltyRedeemRecordId: loyaltyRedeemRecordId ?? null,
     })
 
     return NextResponse.json({

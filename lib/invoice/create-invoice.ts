@@ -4,6 +4,7 @@ import { confirmInvoiceWithFurs, generateZoiForInvoice } from '@/lib/furs/api'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
 import { decrypt } from '@/lib/crypto'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
+import { awardPointsForInvoice, getInvoiceLoyaltyDisplay } from '@/lib/loyalty/award'
 import type { PosInvoiceItem } from '@/types'
 
 export interface CreateInvoiceInput {
@@ -38,6 +39,11 @@ export interface CreateInvoiceInput {
   currency?: string
   // Optional, for Stripe reconciliation
   stripePaymentIntentId?: string | null
+  // Optional loyalty: an "Stranke" client id, and the ledger row id of a
+  // redemption that was locked in via /api/loyalty/redeem before this invoice
+  // existed — it gets linked to the new invoice so PDF/email can show it.
+  clientId?: string | null
+  loyaltyRedeemRecordId?: string | null
 }
 
 /** Validation/business error that maps to an HTTP 400 in the API route. */
@@ -89,6 +95,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     notes,
     currency = 'EUR',
     stripePaymentIntentId,
+    clientId,
+    loyaltyRedeemRecordId,
   } = input
 
   const supabase = createServiceClient()
@@ -254,6 +262,35 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     }
   }
 
+  // Loyalty: link any pre-locked redemption to this invoice, then award earned
+  // points. Non-blocking — never let loyalty bookkeeping fail invoice issuance.
+  try {
+    if (loyaltyRedeemRecordId) {
+      await supabase
+        .from('pos_loyalty_points')
+        .update({ invoice_id: invoice.id, description: `Unovceno pri racunu ${invoiceNumber}` })
+        .eq('id', loyaltyRedeemRecordId)
+        .eq('company_id', companyId)
+        .is('invoice_id', null)
+    }
+    await awardPointsForInvoice(supabase, {
+      companyId,
+      clientEmail: buyer.email,
+      clientId,
+      invoiceId: invoice.id,
+      invoiceNumber,
+      total,
+    })
+  } catch (loyaltyErr) {
+    console.error('[createInvoice] loyalty bookkeeping failed (non-blocking):', loyaltyErr)
+  }
+
+  const loyaltyDisplay = await getInvoiceLoyaltyDisplay(supabase, {
+    companyId,
+    invoiceId: invoice.id,
+    clientEmail: buyer.email,
+  }).catch(() => ({ redeemed: null, earned: null }))
+
   // PDF generation and upload
   let pdfUrl: string | null = null
   try {
@@ -305,6 +342,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       currency,
       clientCompanyName: buyer.type === 'legal' ? buyer.companyName ?? undefined : undefined,
       clientCompanyTax: buyer.type === 'legal' ? buyer.companyTax ?? undefined : undefined,
+      loyaltyRedeemed: loyaltyDisplay.redeemed ?? undefined,
+      loyaltyEarned: loyaltyDisplay.earned ?? undefined,
     })
 
     const storageKey = `${companyId}/${invoiceNumber}.pdf`

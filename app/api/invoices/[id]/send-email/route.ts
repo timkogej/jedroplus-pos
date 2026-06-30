@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { sendInvoiceEmail } from '@/lib/invoice/email'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
+import { getInvoiceLoyaltyDisplay } from '@/lib/loyalty/award'
 
 export async function POST(
   req: NextRequest,
@@ -78,6 +79,12 @@ export async function POST(
       settings?.furs_environment === 'test' ||
       (invoice.furs_response as Record<string, unknown> | null)?.demo === true
 
+    const loyaltyDisplay = await getInvoiceLoyaltyDisplay(supabase, {
+      companyId: invoice.company_id,
+      invoiceId: invoice.id,
+      clientEmail: invoice.client_email,
+    }).catch(() => ({ redeemed: null, earned: null }))
+
     let pdfBuffer: Buffer | null = null
     try {
       pdfBuffer = await generateInvoicePdf({
@@ -91,6 +98,8 @@ export async function POST(
         isTestMode,
         premiseCode: (premise as { premise_id?: string } | null)?.premise_id ?? undefined,
         deviceCode: (device as { device_id?: string } | null)?.device_id ?? undefined,
+        loyaltyRedeemed: loyaltyDisplay.redeemed ?? undefined,
+        loyaltyEarned: loyaltyDisplay.earned ?? undefined,
       })
     } catch (pdfErr) {
       console.error('[send-email] PDF generation failed:', pdfErr)
@@ -120,7 +129,12 @@ export async function POST(
     }
 
     const pdfBase64 = pdfBuffer ? pdfBuffer.toString('base64') : ''
-    const result = await sendInvoiceEmail(invoice, pdfBase64, companyName, { brandPrimary, brandSecond })
+    const result = await sendInvoiceEmail(invoice, pdfBase64, companyName, {
+      brandPrimary,
+      brandSecond,
+      loyaltyRedeemed: loyaltyDisplay.redeemed ?? undefined,
+      loyaltyEarned: loyaltyDisplay.earned ?? undefined,
+    })
 
     if (result.success) {
       await supabase

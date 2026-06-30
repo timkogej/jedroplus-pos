@@ -36,6 +36,9 @@ export interface PosSettings {
   online_device_id: string | null
   currency: string
   furs_environment: 'test' | 'production'
+  loyalty_enabled: boolean
+  loyalty_earn_rate: number
+  loyalty_redeem_value: number
   created_at: string
   updated_at: string
 }

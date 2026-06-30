@@ -78,6 +78,12 @@ export default function InvoiceForm({
   const [premiseId, setPremiseId] = useState(prefill?.premise_id ?? premises[0]?.id ?? '')
   const [deviceId, setDeviceId] = useState(prefill?.device_id ?? '')
 
+  // Loyalty points
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
+  const [loyaltyBalance, setLoyaltyBalance] = useState(0)
+  const [loyaltyRedeemValue, setLoyaltyRedeemValue] = useState(settings?.loyalty_redeem_value ?? 0)
+  const [pointsToRedeem, setPointsToRedeem] = useState(0)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [emailWarning, setEmailWarning] = useState('')
@@ -104,6 +110,39 @@ export default function InvoiceForm({
     setEmailInput(clientEmail)
   }, [clientEmail])
 
+  // Look up the client's loyalty balance whenever their email changes.
+  useEffect(() => {
+    const email = clientEmail.trim()
+    if (!settings?.loyalty_enabled || !email || !email.includes('@')) {
+      setLoyaltyEnabled(false)
+      setLoyaltyBalance(0)
+      setPointsToRedeem(0)
+      return
+    }
+    let cancelled = false
+    const t = setTimeout(async () => {
+      try {
+        const res = await authFetch('/api/loyalty/balance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyId, clientEmail: email }),
+        })
+        const data = await res.json()
+        if (cancelled || !res.ok) return
+        setLoyaltyEnabled(Boolean(data.enabled))
+        setLoyaltyBalance(Number(data.balance) || 0)
+        if (typeof data.redeemValue === 'number') setLoyaltyRedeemValue(data.redeemValue)
+        setPointsToRedeem(0)
+      } catch {
+        // best-effort; loyalty card just stays hidden
+      }
+    }, 500)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [clientEmail, companyId, settings?.loyalty_enabled])
+
   const itemsTotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0)
   const discountValue =
     discountAmount > 0
@@ -113,8 +152,17 @@ export default function InvoiceForm({
       : 0
   const subtotal = itemsTotal - discountValue
   const vatRate = items[0]?.vat_rate ?? defaultVat
-  const vatAmount = subtotal * (vatRate / (100 + vatRate))
-  const total = subtotal
+  // Cap redeemable points so the invoice total never drops to 0 — at least
+  // 0.01 must remain (a 0-total invoice is invalid and would fail FURS confirm).
+  const maxRedeemablePoints =
+    loyaltyRedeemValue > 0
+      ? Math.min(loyaltyBalance, Math.max(0, Math.floor((subtotal - 0.01) / loyaltyRedeemValue)))
+      : 0
+  const redeemCapped = maxRedeemablePoints < loyaltyBalance
+  const clampedPoints = Math.max(0, Math.min(pointsToRedeem, maxRedeemablePoints))
+  const loyaltyDiscount = clampedPoints * loyaltyRedeemValue
+  const total = Math.max(0, subtotal - loyaltyDiscount)
+  const vatAmount = total * (vatRate / (100 + vatRate))
 
   function updateItem(index: number, field: keyof InvoiceItemForm, value: string | number) {
     setItems((prev) =>
@@ -144,6 +192,22 @@ export default function InvoiceForm({
 
     setLoading(true)
     try {
+      // Lock in any loyalty redemption first, then attach it to the invoice.
+      let loyaltyRedeemRecordId: string | null = null
+      let finalNotes = notes
+      if (clampedPoints > 0 && loyaltyEnabled) {
+        const redeemRes = await authFetch('/api/loyalty/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyId, clientEmail: clientEmail.trim(), pointsToRedeem: clampedPoints }),
+        })
+        const redeemData = await redeemRes.json()
+        if (!redeemRes.ok) throw new Error(redeemData.error || 'Napaka pri unovčenju točk')
+        loyaltyRedeemRecordId = redeemData.recordId
+        const note = `Loyalty popust: -${loyaltyDiscount.toFixed(2)} ${currencySymbol} (${clampedPoints} točk)`
+        finalNotes = finalNotes ? `${finalNotes}\n${note}` : note
+      }
+
       const res = await authFetch('/api/invoices/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,8 +231,9 @@ export default function InvoiceForm({
           vatAmount,
           total,
           items,
-          notes,
+          notes: finalNotes,
           currency: defaultCurrency,
+          loyaltyRedeemRecordId,
         }),
       })
       const data = await res.json()
@@ -197,7 +262,7 @@ export default function InvoiceForm({
           vat_amount: vatAmount,
           discount_amount: discountValue,
           discount_type: discountAmount > 0 ? discountType : null,
-          notes: notes || null,
+          notes: finalNotes || null,
           furs_response: data.isDemoMode ? { demo: true } : null,
           pdf_url: data.pdfUrl ?? null,
           pos_invoice_items: items.map((item, i) => ({
@@ -540,6 +605,55 @@ export default function InvoiceForm({
         </div>
       </div>
 
+      {/* Loyalty redemption */}
+      {loyaltyEnabled && loyaltyBalance > 0 && (
+        <div className="bg-white rounded-2xl border border-[#6D5EF7]/30 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">🎁</span>
+            <p className="text-sm font-semibold text-gray-900">
+              Stranka ima {loyaltyBalance} točk (vredno {(loyaltyBalance * loyaltyRedeemValue).toFixed(2)} {currencySymbol})
+            </p>
+          </div>
+          <label className="text-xs font-medium text-gray-500 block mb-2">Koliko točk želite unovčiti?</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={maxRedeemablePoints}
+              step={1}
+              value={clampedPoints}
+              onChange={(e) => setPointsToRedeem(parseInt(e.target.value, 10) || 0)}
+              className="flex-1 accent-[#6D5EF7]"
+            />
+            <input
+              type="number"
+              min={0}
+              max={maxRedeemablePoints}
+              value={clampedPoints}
+              onChange={(e) => setPointsToRedeem(parseInt(e.target.value, 10) || 0)}
+              className="w-20 px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            />
+            <button
+              type="button"
+              onClick={() => setPointsToRedeem(maxRedeemablePoints)}
+              className="text-xs font-medium text-[#6D5EF7] hover:underline whitespace-nowrap"
+            >
+              Uporabi vse
+            </button>
+          </div>
+          {redeemCapped && (
+            <p className="text-xs text-gray-400 mt-2">
+              Največ {maxRedeemablePoints} točk (mora ostati vsaj 0.01 {currencySymbol})
+            </p>
+          )}
+          {loyaltyDiscount > 0 && (
+            <p className="text-xs text-green-700 mt-2">
+              Popust: -{loyaltyDiscount.toFixed(2)} {currencySymbol} ({clampedPoints} točk)
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Totals */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <div className="space-y-2">
@@ -551,6 +665,12 @@ export default function InvoiceForm({
             <div className="flex justify-between text-sm">
               <span className="text-green-700">Popust ({discountType === '%' ? `${discountAmount}%` : `${discountAmount} ${currencySymbol}`})</span>
               <span className="text-green-700 font-medium">-{discountValue.toFixed(2)} {currencySymbol}</span>
+            </div>
+          )}
+          {loyaltyDiscount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-green-700">🎁 Loyalty popust ({clampedPoints} točk)</span>
+              <span className="text-green-700 font-medium">-{loyaltyDiscount.toFixed(2)} {currencySymbol}</span>
             </div>
           )}
           <div className="flex justify-between text-sm">

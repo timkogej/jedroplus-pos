@@ -6,6 +6,7 @@ import { generateInvoiceNumber } from '@/lib/invoice/generate'
 import { decrypt } from '@/lib/crypto'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
+import { reversePointsForStorno } from '@/lib/loyalty/award'
 import type { PosInvoiceItem } from '@/types'
 
 export async function POST(
@@ -193,6 +194,17 @@ export async function POST(
       .from('pos_invoices')
       .update({ status: 'storno_original', storno_invoice_id: stornoInvoice.id })
       .eq('id', original.id)
+
+    // Reverse any loyalty points earned from the original invoice. Non-blocking.
+    try {
+      await reversePointsForStorno(supabase, {
+        companyId,
+        originalInvoiceId: original.id,
+        originalInvoiceNumber: original.invoice_number,
+      })
+    } catch (loyaltyErr) {
+      console.error('[storno] loyalty reversal failed (non-blocking):', loyaltyErr)
+    }
 
     // Generate storno PDF
     let pdfUrl: string | null = null

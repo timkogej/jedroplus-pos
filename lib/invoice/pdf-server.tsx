@@ -19,6 +19,8 @@ export interface PdfGenerateOptions {
   currency?: string
   clientCompanyName?: string
   clientCompanyTax?: string
+  loyaltyRedeemed?: { points: number; amount: number }
+  loyaltyEarned?: { points: number; balance: number }
 }
 
 // Replace Slovenian special characters for PDF rendering
@@ -71,6 +73,8 @@ export async function generateInvoicePdf(opts: PdfGenerateOptions): Promise<Buff
     currency = 'EUR',
     clientCompanyName,
     clientCompanyTax,
+    loyaltyRedeemed,
+    loyaltyEarned,
   } = opts
 
   const qrContent = invoice.zoi
@@ -386,6 +390,22 @@ export async function generateInvoicePdf(opts: PdfGenerateOptions): Promise<Buff
           {invoice.notes && (
             <View style={{ marginTop: 12 }}>
               <Text style={{ fontSize: 8.5, color: '#4b5563' }}>Opomba: {rs(invoice.notes)}</Text>
+            </View>
+          )}
+
+          {/* Loyalty points */}
+          {(loyaltyRedeemed || loyaltyEarned) && (
+            <View style={{ marginTop: 10 }}>
+              {loyaltyRedeemed && (
+                <Text style={{ fontSize: 8.5, color: '#4b5563' }}>
+                  Unovceno tock: {loyaltyRedeemed.points} (-{fmt(loyaltyRedeemed.amount, currency)})
+                </Text>
+              )}
+              {loyaltyEarned && (
+                <Text style={{ fontSize: 8.5, color: '#4b5563', marginTop: 2 }}>
+                  Zasluzene tocke: +{loyaltyEarned.points} (skupno stanje: {loyaltyEarned.balance})
+                </Text>
+              )}
             </View>
           )}
 
