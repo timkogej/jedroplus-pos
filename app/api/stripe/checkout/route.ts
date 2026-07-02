@@ -84,7 +84,9 @@ export async function POST(req: NextRequest) {
       customerEmail,
       language,
       paymentMode = 'full',
-      depositPercent = 0,
+      // depositPercent is intentionally not read: the charge (including any
+      // deposit) comes from Termini.payment_amount, never from the client.
+      // Kept in CheckoutBody for API compatibility.
       successUrl,
       cancelUrl,
     } = body
@@ -106,7 +108,7 @@ export async function POST(req: NextRequest) {
     // 1. Resolve company.
     const { data: company } = await supabase
       .from('companies')
-      .select('id, slug')
+      .select('id, slug, company_id')
       .eq('slug', companySlug)
       .maybeSingle()
 
@@ -136,11 +138,83 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 3. Compute the charge amount (full or deposit), rounded to cents.
-    const chargeAmount =
-      paymentMode === 'deposit'
-        ? Math.round(amount * (depositPercent / 100) * 100) / 100
-        : amount
+    // 3. Derive the authoritative charge amount server-side from the appointment
+    // row. NEVER trust the client `amount`: a tampered request could pay 0.01
+    // while the webhook still issues a fiscal invoice at the real price.
+    // "ID podjetja" holds the short company code (companies.company_id), not the
+    // UUID, so we scope on that.
+    //
+    // Termini.payment_amount is the charge n8n computed at booking time. It is
+    // the ONLY stored field that reflects promotion discount + add-on + deposit:
+    // "Final cena"/"Cena" exclude the add-on and don't apply the deposit, and the
+    // add-on price is not persisted anywhere else on the row. So payment_amount
+    // is the authoritative value the client must pay. (Its correctness depends on
+    // the n8n computePaymentAmount node — see N8N_WORKFLOW_SPEC.md.)
+    const { data: termin } = await supabase
+      .from('Termini')
+      .select('id, "ID podjetja", "Final cena", "Cena", payment_amount')
+      .eq('id', String(appointmentId))
+      .maybeSingle()
+
+    if (!termin || String(termin['ID podjetja']) !== String(company.company_id)) {
+      return NextResponse.json(
+        { error: 'appointment_not_found', message: en ? 'Appointment not found.' : 'Termin ni najden.' },
+        { status: 404, headers }
+      )
+    }
+
+    // Discounted full service price (excludes any add-on) — "Final cena" is the
+    // post-discount total, fall back to "Cena". Both are stored as strings.
+    const dbServicePrice =
+      termin['Final cena'] != null && Number(termin['Final cena']) > 0
+        ? Number(termin['Final cena'])
+        : Number(termin['Cena'] ?? 0)
+
+    // Authoritative charge = what n8n stored for this appointment.
+    const expectedCharge = Number(termin['payment_amount'] ?? 0)
+
+    if (!(expectedCharge > 0)) {
+      // Checkout is only reached for appointments created with online payment, so
+      // payment_amount must be set. If it isn't, refuse rather than guess — we
+      // cannot reconstruct an add-on charge from the price columns alone.
+      return NextResponse.json(
+        {
+          error: 'invalid_amount',
+          message: en
+            ? 'Appointment is not set up for online payment.'
+            : 'Termin ni pripravljen za spletno plačilo.',
+        },
+        { status: 400, headers }
+      )
+    }
+
+    // Defense-in-depth floor: a FULL payment can never be less than the
+    // discounted service price (add-ons only increase it). Deposits are
+    // intentionally a fraction, so the floor applies to full mode only. This
+    // catches a payment_amount that is wrongly too low even though it matches a
+    // (also-wrong) client amount.
+    if (paymentMode !== 'deposit' && expectedCharge + 0.01 < dbServicePrice) {
+      return NextResponse.json(
+        { error: 'invalid_amount', message: en ? 'Invalid amount.' : 'Neveljaven znesek.' },
+        { status: 400, headers }
+      )
+    }
+
+    // Tamper guard: the client-supplied amount must match the authoritative charge.
+    if (Math.abs(amount - expectedCharge) > 0.01) {
+      return NextResponse.json(
+        {
+          error: 'amount_mismatch',
+          message: en
+            ? 'Payment amount does not match the appointment price.'
+            : 'Znesek plačila se ne ujema s ceno termina.',
+        },
+        { status: 400, headers }
+      )
+    }
+
+    // Charge the authoritative amount, not the client value.
+    const chargeAmount = expectedCharge
 
     if (chargeAmount <= 0) {
       return NextResponse.json(
@@ -231,7 +305,7 @@ export async function POST(req: NextRequest) {
           companySlug: company.slug,
           premiseId,
           deviceId,
-          fullAmount: String(amount),
+          fullAmount: String(dbServicePrice),
           chargedAmount: String(chargeAmount),
           paymentMode,
         },
