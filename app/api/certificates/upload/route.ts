@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { encrypt } from '@/lib/crypto'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
-import forge from 'node-forge'
+import { parseP12 } from '@/lib/furs/certificate'
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,34 +22,24 @@ export async function POST(req: NextRequest) {
     const p12Buffer = Buffer.from(arrayBuffer)
     const p12Base64 = p12Buffer.toString('base64')
 
-    // Validate and parse certificate
-    let taxNumber = ''
-    let validFrom: Date | null = null
-    let validTo: Date | null = null
-
+    // Validate and parse certificate (also verifies the private key exists)
+    let certInfo
     try {
-      const p12Der = forge.util.decode64(p12Base64)
-      const p12Asn1 = forge.asn1.fromDer(p12Der)
-      const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, password)
-
-      const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })
-      const certBag = certBags[forge.pki.oids.certBag]?.[0]
-
-      if (certBag?.cert) {
-        const cert = certBag.cert
-        validFrom = cert.validity.notBefore
-        validTo = cert.validity.notAfter
-
-        // Extract tax number from subject
-        const subject = cert.subject.attributes
-        const serialAttr = subject.find((a: forge.pki.CertificateField) => a.name === 'serialName' || a.shortName === 'SERIALNUMBER')
-        const cnAttr = subject.find((a: forge.pki.CertificateField) => a.shortName === 'CN')
-        const rawValue = String(serialAttr?.value ?? cnAttr?.value ?? '')
-        taxNumber = rawValue.replace(/[^0-9]/g, '')
-      }
+      certInfo = parseP12(p12Base64, password)
     } catch {
       return NextResponse.json({ error: 'Neveljaven certifikat ali napačno geslo' }, { status: 400 })
     }
+
+    if (certInfo.isExpired) {
+      return NextResponse.json(
+        { error: `Certifikat je potekel ${certInfo.validTo.toLocaleDateString('sl-SI')}` },
+        { status: 400 }
+      )
+    }
+
+    const taxNumber = certInfo.taxNumber
+    const validFrom = certInfo.validFrom
+    const validTo = certInfo.validTo
 
     const supabase = createServiceClient()
 
@@ -81,6 +71,7 @@ export async function POST(req: NextRequest) {
       tax_number: taxNumber,
       valid_from: validFrom?.toISOString(),
       valid_to: validTo?.toISOString(),
+      is_expiring_soon: certInfo.isExpiringSoon,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error'

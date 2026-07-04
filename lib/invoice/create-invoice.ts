@@ -1,8 +1,10 @@
 import { randomBytes, randomUUID } from 'crypto'
 import { createServiceClient } from '@/lib/supabase'
-import { confirmInvoiceWithFurs, generateZoiForInvoice } from '@/lib/furs/api'
+import { confirmInvoiceWithFurs } from '@/lib/furs/api'
+import { buildFursTaxes } from '@/lib/furs/taxes'
+import { formatDateForZoi } from '@/lib/furs/zoi'
+import { FursError, type FursInvoiceRequest } from '@/lib/furs/types'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
-import { decrypt } from '@/lib/crypto'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { awardPointsForInvoice, getInvoiceLoyaltyDisplay } from '@/lib/loyalty/award'
 import type { PosInvoiceItem } from '@/types'
@@ -143,10 +145,10 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
 
   const { data: certRow } = await supabase
     .from('pos_certificates')
-    .select('certificate_data, certificate_password, tax_number')
+    .select('tax_number')
     .eq('company_id', companyId)
     .eq('is_active', true)
-    .single()
+    .maybeSingle()
 
   let zoi: string
   let eor: string | null = null
@@ -154,6 +156,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
   let fursError: string | null = null
 
   if (!certRow) {
+    // DEMO MODE — no certificate uploaded yet.
     if (environment !== 'test') {
       throw new InvoiceValidationError('Certifikat ni naložen')
     }
@@ -161,38 +164,37 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     eor = randomUUID()
     isDemoMode = true
   } else {
-    const certData = decrypt(certRow.certificate_data)
-    const certPassword = decrypt(certRow.certificate_password)
-    const taxNumber = certRow.tax_number
-
-    zoi = generateZoiForInvoice({
-      taxNumber,
-      issueDate,
+    // REAL FURS MODE
+    const fursRequest: FursInvoiceRequest = {
+      taxNumber: certRow.tax_number,
+      issueDateTime: formatDateForZoi(issueDate),
       invoiceNumber,
       businessPremiseId: premise.premise_id,
       electronicDeviceId: device.device_id,
-      invoiceAmount: total,
-      certificateData: certData,
-      certificatePassword: certPassword,
-    })
+      invoiceAmount: total.toFixed(2),
+      paymentAmount: total.toFixed(2),
+      taxesPerSeller: buildFursTaxes(items, total),
+    }
 
-    const fursResponse = await confirmInvoiceWithFurs({
-      taxNumber,
-      businessPremiseId: premise.premise_id,
-      electronicDeviceId: device.device_id,
-      invoiceNumber,
-      invoiceDate: issueDate.toISOString(),
-      invoiceAmount: total,
-      paymentAmount: total,
-      taxPercent: vatRate,
-      taxAmount: vatAmount,
-      zoi,
-      certificate: { data: certData, password: certPassword },
-      environment: environment as 'test' | 'production',
-    })
-
-    eor = fursResponse.eor
-    fursError = fursResponse.error ?? null
+    try {
+      const fursResponse = await confirmInvoiceWithFurs(fursRequest, companyId)
+      zoi = fursResponse.zoi
+      eor = fursResponse.eor
+    } catch (err) {
+      // OFFLINE MODE — the ZOI is real (signed with the certificate), only the
+      // EOR is missing. ZDavPR allows issuing now and confirming later; the
+      // retry cron (/api/furs/retry) picks these up via status 'pending_furs'.
+      if (err instanceof FursError && err.zoi) {
+        zoi = err.zoi
+        fursError = `${err.code}: ${err.message}`
+        console.error('[createInvoice] FURS unavailable, issuing offline:', fursError)
+      } else {
+        // ZOI could not be calculated at all (bad certificate) — can't issue.
+        throw new InvoiceValidationError(
+          err instanceof Error ? err.message : 'Napaka pri podpisovanju računa'
+        )
+      }
+    }
   }
 
   const { data: invoice, error: invoiceError } = await supabase
@@ -215,7 +217,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       vat_amount: vatAmount,
       total,
       payment_method: paymentMethod,
-      status: eor ? 'issued' : 'draft',
+      status: eor ? 'issued' : 'pending_furs',
       zoi,
       eor,
       furs_confirmed_at: eor ? issueDate.toISOString() : null,

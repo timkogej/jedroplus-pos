@@ -23,6 +23,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState<CertificateInfo | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [connectionTest, setConnectionTest] = useState<'idle' | 'testing' | 'ok' | 'failed'>('idle')
 
   const certInfo = success ?? existingCert
   const isExpiringSoon = certInfo?.valid_to
@@ -64,6 +65,16 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
       setSuccess(data)
       setFile(null)
       setPassword('')
+
+      // Immediately test the FURS connection with the new certificate
+      setConnectionTest('testing')
+      try {
+        const statusRes = await authFetch(`/api/furs/status?company_id=${companyId}`)
+        const statusData = await statusRes.json()
+        setConnectionTest(statusRes.ok && statusData.status === 'connected' ? 'ok' : 'failed')
+      } catch {
+        setConnectionTest('failed')
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Napaka')
     } finally {
@@ -91,6 +102,17 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
                 <p className="text-xs text-gray-500">
                   Veljavnost: {new Date(certInfo.valid_from).toLocaleDateString('sl-SI')} –{' '}
                   {certInfo.valid_to ? new Date(certInfo.valid_to).toLocaleDateString('sl-SI') : '—'}
+                </p>
+              )}
+              {connectionTest !== 'idle' && (
+                <p className={`text-xs mt-1 ${
+                  connectionTest === 'ok' ? 'text-green-600'
+                    : connectionTest === 'failed' ? 'text-red-600'
+                    : 'text-gray-500'
+                }`}>
+                  {connectionTest === 'testing' && '🔄 Testiram povezavo s FURS...'}
+                  {connectionTest === 'ok' && '✅ Povezava s FURS uspešna'}
+                  {connectionTest === 'failed' && '❌ Napaka pri povezavi s FURS'}
                 </p>
               )}
             </div>

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
+import FursStatusIndicator from '@/components/layout/FursStatusIndicator'
 
 interface SidebarProps {
   slug: string
@@ -163,6 +164,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-100 space-y-0.5">
+        <FursStatusIndicator slug={slug} />
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all duration-150"

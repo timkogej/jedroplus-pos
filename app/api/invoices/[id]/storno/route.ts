@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes, randomUUID } from 'crypto'
 import { createServiceClient } from '@/lib/supabase'
-import { confirmInvoiceWithFurs, generateZoiForInvoice } from '@/lib/furs/api'
+import { confirmInvoiceWithFurs } from '@/lib/furs/api'
+import { singleFursTax } from '@/lib/furs/taxes'
+import { formatDateForZoi } from '@/lib/furs/zoi'
+import { FursError, type FursInvoiceRequest } from '@/lib/furs/types'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
-import { decrypt } from '@/lib/crypto'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
 import { reversePointsForStorno } from '@/lib/loyalty/award'
@@ -44,10 +46,10 @@ export async function POST(
         .single(),
       supabase
         .from('pos_certificates')
-        .select('certificate_data, certificate_password, tax_number')
+        .select('tax_number')
         .eq('company_id', companyId)
         .eq('is_active', true)
-        .single(),
+        .maybeSingle(),
     ])
 
     // Resolve premise + device from original invoice
@@ -105,38 +107,36 @@ export async function POST(
       eor = randomUUID()
       isDemoMode = true
     } else {
-      const certData = decrypt(certRow.certificate_data)
-      const certPassword = decrypt(certRow.certificate_password)
-      const taxNumber = certRow.tax_number
-
-      zoi = generateZoiForInvoice({
-        taxNumber,
-        issueDate,
+      const fursRequest: FursInvoiceRequest = {
+        taxNumber: certRow.tax_number,
+        issueDateTime: formatDateForZoi(issueDate),
         invoiceNumber: stornoNumber,
         businessPremiseId: premise.premise_id,
         electronicDeviceId: device.device_id,
-        invoiceAmount: stornoTotal,
-        certificateData: certData,
-        certificatePassword: certPassword,
-      })
+        invoiceAmount: stornoTotal.toFixed(2),
+        paymentAmount: stornoTotal.toFixed(2),
+        taxesPerSeller: singleFursTax(original.vat_rate, stornoVat, stornoTotal),
+        referenceInvoice: {
+          referenceInvoiceNumber: original.invoice_number,
+          referenceBusinessPremiseId: premise.premise_id,
+          referenceElectronicDeviceId: device.device_id,
+          referenceInvoiceIssueDateTime: formatDateForZoi(new Date(original.invoice_date)),
+        },
+      }
 
-      const fursResponse = await confirmInvoiceWithFurs({
-        taxNumber,
-        businessPremiseId: premise.premise_id,
-        electronicDeviceId: device.device_id,
-        invoiceNumber: stornoNumber,
-        invoiceDate: issueDate.toISOString(),
-        invoiceAmount: stornoTotal,
-        paymentAmount: stornoTotal,
-        taxPercent: original.vat_rate,
-        taxAmount: stornoVat,
-        zoi,
-        certificate: { data: certData, password: certPassword },
-        environment: environment as 'test' | 'production',
-      })
-
-      eor = fursResponse.eor
-      fursError = fursResponse.error ?? null
+      try {
+        const fursResponse = await confirmInvoiceWithFurs(fursRequest, companyId)
+        zoi = fursResponse.zoi
+        eor = fursResponse.eor
+      } catch (err) {
+        if (err instanceof FursError && err.zoi) {
+          // Offline: real ZOI, EOR pending — the retry cron confirms it later.
+          zoi = err.zoi
+          fursError = `${err.code}: ${err.message}`
+        } else {
+          throw err
+        }
+      }
     }
 
     // Create storno invoice
@@ -159,7 +159,7 @@ export async function POST(
         vat_amount:       stornoVat,
         total:            stornoTotal,
         payment_method:   original.payment_method,
-        status:           eor ? 'storno' : 'draft',
+        status:           eor ? 'storno' : 'pending_furs',
         is_storno:        true,
         storno_of:        original.id,
         zoi,

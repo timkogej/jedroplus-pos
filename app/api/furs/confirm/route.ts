@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes, randomUUID } from 'crypto'
 import { createServiceClient } from '@/lib/supabase'
-import { confirmInvoiceWithFurs, generateZoiForInvoice } from '@/lib/furs/api'
+import { confirmInvoiceWithFurs } from '@/lib/furs/api'
+import { singleFursTax } from '@/lib/furs/taxes'
+import { formatDateForZoi } from '@/lib/furs/zoi'
+import { FursError, type FursInvoiceRequest } from '@/lib/furs/types'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
-import { decrypt } from '@/lib/crypto'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 
 export async function POST(req: NextRequest) {
@@ -36,10 +38,10 @@ export async function POST(req: NextRequest) {
     // Load certificate
     const { data: certRow } = await supabase
       .from('pos_certificates')
-      .select('certificate_data, certificate_password, tax_number')
+      .select('tax_number')
       .eq('company_id', companyId)
       .eq('is_active', true)
-      .single()
+      .maybeSingle()
 
     // Demo mode: test environment with no certificate uploaded
     if (!certRow) {
@@ -57,45 +59,43 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const certData = decrypt(certRow.certificate_data)
-    const certPassword = decrypt(certRow.certificate_password)
-    const taxNumber = certRow.tax_number
-
-    const zoi = generateZoiForInvoice({
-      taxNumber,
-      issueDate,
+    const fursRequest: FursInvoiceRequest = {
+      taxNumber: certRow.tax_number,
+      issueDateTime: formatDateForZoi(issueDate),
       invoiceNumber,
       businessPremiseId: premise.premise_id,
       electronicDeviceId: device.device_id,
-      invoiceAmount: invoiceData.total,
-      certificateData: certData,
-      certificatePassword: certPassword,
-    })
+      invoiceAmount: Number(invoiceData.total).toFixed(2),
+      paymentAmount: Number(invoiceData.total).toFixed(2),
+      taxesPerSeller: singleFursTax(invoiceData.vat_rate, invoiceData.vat_amount, invoiceData.total),
+    }
 
-    const fursResponse = await confirmInvoiceWithFurs({
-      taxNumber,
-      businessPremiseId: premise.premise_id,
-      electronicDeviceId: device.device_id,
-      invoiceNumber,
-      invoiceDate: issueDate.toISOString(),
-      invoiceAmount: invoiceData.total,
-      paymentAmount: invoiceData.total,
-      taxPercent: invoiceData.vat_rate,
-      taxAmount: invoiceData.vat_amount,
-      zoi,
-      certificate: { data: certData, password: certPassword },
-      environment: environment as 'test' | 'production',
-    })
-
-    return NextResponse.json({
-      invoiceNumber,
-      zoi,
-      eor: fursResponse.eor,
-      fursError: fursResponse.error,
-      fursConfirmed: !!fursResponse.eor,
-      isDemoMode: false,
-      issueDate: issueDate.toISOString(),
-    })
+    try {
+      const fursResponse = await confirmInvoiceWithFurs(fursRequest, companyId)
+      return NextResponse.json({
+        invoiceNumber,
+        zoi: fursResponse.zoi,
+        eor: fursResponse.eor,
+        fursError: null,
+        fursConfirmed: true,
+        isDemoMode: false,
+        issueDate: issueDate.toISOString(),
+      })
+    } catch (err) {
+      if (err instanceof FursError && err.zoi) {
+        // Offline mode: real ZOI, EOR pending (retry cron will confirm later).
+        return NextResponse.json({
+          invoiceNumber,
+          zoi: err.zoi,
+          eor: null,
+          fursError: `${err.code}: ${err.message}`,
+          fursConfirmed: false,
+          isDemoMode: false,
+          issueDate: issueDate.toISOString(),
+        })
+      }
+      throw err
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error'
     return NextResponse.json({ error: message }, { status: 500 })
