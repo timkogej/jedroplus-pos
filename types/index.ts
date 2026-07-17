@@ -61,9 +61,13 @@ export interface PosPremise {
   premise_id: string
   premise_type: 'premises' | 'movable'
   address: string | null
+  house_number: string | null
+  house_number_additional: string | null
   city: string | null
   postal_code: string | null
   is_active: boolean
+  furs_registered: boolean
+  furs_registered_at: string | null
   created_at: string
 }
 

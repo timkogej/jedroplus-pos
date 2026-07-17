@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/authFetch'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
@@ -16,19 +17,28 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
   const [premises, setPremises] = useState(initialPremises)
   const [devices, setDevices] = useState(initialDevices)
 
-  const [newPremise, setNewPremise] = useState({ premise_id: '', address: '', city: '', postal_code: '', premise_type: 'premises' })
+  const [newPremise, setNewPremise] = useState({ premise_id: '', address: '', house_number: '', house_number_additional: '', city: '', postal_code: '', premise_type: 'premises' })
   const [newDevice, setNewDevice] = useState({ device_id: '', premise_id: initialPremises[0]?.id ?? '' })
   const [addingPremise, setAddingPremise] = useState(false)
   const [addingDevice, setAddingDevice] = useState(false)
+  const [registeringId, setRegisteringId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   async function savePremise() {
     if (!newPremise.premise_id) { setError('Vnesite oznako prostora'); return }
+    if (newPremise.premise_type !== 'movable' && !newPremise.house_number) {
+      setError('Vnesite hišno številko (zahteva FURS)')
+      return
+    }
     setAddingPremise(true)
     setError('')
     const { data, error: err } = await supabase
       .from('pos_premises')
-      .insert({ company_id: companyId, ...newPremise })
+      .insert({
+        company_id: companyId,
+        ...newPremise,
+        house_number_additional: newPremise.house_number_additional || null,
+      })
       .select()
       .single()
 
@@ -40,7 +50,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
       setNewDevice((d) => ({ ...d, premise_id: d.premise_id || updated[0].id }))
       return updated
     })
-    setNewPremise({ premise_id: '', address: '', city: '', postal_code: '', premise_type: 'premises' })
+    setNewPremise({ premise_id: '', address: '', house_number: '', house_number_additional: '', city: '', postal_code: '', premise_type: 'premises' })
     setAddingPremise(false)
   }
 
@@ -65,6 +75,26 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
     setPremises((p) => p.map((pr) => pr.id === id ? { ...pr, is_active: !active } : pr))
   }
 
+  async function registerWithFurs(id: string) {
+    setRegisteringId(id)
+    setError('')
+    const res = await authFetch('/api/furs/register-premise', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId, premiseId: id }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setError(data.error ?? 'Napaka pri registraciji pri FURS')
+      setRegisteringId(null)
+      return
+    }
+    setPremises((p) => p.map((pr) =>
+      pr.id === id ? { ...pr, furs_registered: true, furs_registered_at: new Date().toISOString() } : pr
+    ))
+    setRegisteringId(null)
+  }
+
   const premiseOptions = premises.map((p) => ({ value: p.id, label: `${p.premise_id} - ${p.address ?? ''}` }))
 
   return (
@@ -80,15 +110,37 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
               <div key={p.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{p.premise_id}</p>
-                  <p className="text-xs text-gray-500">{[p.address, p.city, p.postal_code].filter(Boolean).join(', ')}</p>
+                  <p className="text-xs text-gray-500">
+                    {[
+                      [p.address, p.house_number ? `${p.house_number}${p.house_number_additional ?? ''}` : null].filter(Boolean).join(' '),
+                      p.city,
+                      p.postal_code,
+                    ].filter(Boolean).join(', ')}
+                  </p>
                   <p className="text-xs text-gray-400">{p.premise_type === 'movable' ? 'Mobilna blagajna' : 'Fiksni prostor'}</p>
                 </div>
-                <button
-                  onClick={() => togglePremise(p.id, p.is_active)}
-                  className={`text-xs px-3 py-1 rounded-full border ${p.is_active ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
-                >
-                  {p.is_active ? 'Aktiven' : 'Neaktiven'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full border ${p.furs_registered ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}
+                  >
+                    {p.furs_registered ? 'Registriran pri FURS' : 'Ni registriran'}
+                  </span>
+                  {!p.furs_registered && (
+                    <Button
+                      onClick={() => registerWithFurs(p.id)}
+                      loading={registeringId === p.id}
+                      size="sm"
+                    >
+                      Registriraj pri FURS
+                    </Button>
+                  )}
+                  <button
+                    onClick={() => togglePremise(p.id, p.is_active)}
+                    className={`text-xs px-3 py-1 rounded-full border ${p.is_active ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
+                  >
+                    {p.is_active ? 'Aktiven' : 'Neaktiven'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -111,12 +163,28 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
               onChange={(e) => setNewPremise((p) => ({ ...p, premise_type: e.target.value }))}
             />
           </div>
-          <Input
-            label="Naslov"
-            value={newPremise.address}
-            onChange={(e) => setNewPremise((p) => ({ ...p, address: e.target.value }))}
-            placeholder="Ulica 1"
-          />
+          <div className="grid grid-cols-4 gap-3">
+            <div className="col-span-2">
+              <Input
+                label="Ulica"
+                value={newPremise.address}
+                onChange={(e) => setNewPremise((p) => ({ ...p, address: e.target.value }))}
+                placeholder="Prešernova cesta"
+              />
+            </div>
+            <Input
+              label="Hišna št."
+              value={newPremise.house_number}
+              onChange={(e) => setNewPremise((p) => ({ ...p, house_number: e.target.value.replace(/[^0-9]/g, '') }))}
+              placeholder="21"
+            />
+            <Input
+              label="Dodatek"
+              value={newPremise.house_number_additional}
+              onChange={(e) => setNewPremise((p) => ({ ...p, house_number_additional: e.target.value.toUpperCase() }))}
+              placeholder="A"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Mesto" value={newPremise.city} onChange={(e) => setNewPremise((p) => ({ ...p, city: e.target.value }))} placeholder="Ljubljana" />
             <Input label="Poštna" value={newPremise.postal_code} onChange={(e) => setNewPremise((p) => ({ ...p, postal_code: e.target.value }))} placeholder="1000" />

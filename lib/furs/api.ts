@@ -2,9 +2,28 @@ import https from 'https'
 import { createServiceClient } from '@/lib/supabase'
 import { loadCertificate, validateCertificate, type CertificateInfo } from './certificate'
 import { calculateZoi, buildZoiInput } from './zoi'
-import { buildInvoiceRequestXml } from './xml'
+import { buildInvoiceRequestXml, buildBusinessPremiseRequestXml, buildEchoRequestXml, type FursPremiseAddress } from './xml'
 import { signXmlWithPems } from './sign'
 import { FursError, type FursEnvironment, type FursInvoiceRequest, type FursResponse } from './types'
+
+/** FURS error codes documented in the ZDavPR technical spec. */
+const FURS_ERROR_MESSAGES: Record<string, string> = {
+  S001: 'Sporočilo ne ustreza XML shemi (S001)',
+  S002: 'Sporočilo ne ustreza JSON shemi (S002)',
+  S003: 'Napaka pri digitalnem podpisu - preverite certifikat (S003)',
+  S004: 'Neustrezen identifikator certifikata (S004)',
+  S005: 'Davčna številka ne ustreza certifikatu (S005)',
+  S006: 'Poslovni prostor ni registriran pri FURS - najprej registrirajte prostor (S006)',
+}
+
+/** Tax number of the software supplier (this app), sent with BusinessPremiseRequest. */
+function softwareSupplierTaxNumber(): string {
+  const taxNumber = process.env.FURS_SOFTWARE_SUPPLIER_TAX_NUMBER
+  if (!taxNumber) {
+    throw new FursError('CONFIG', 'FURS_SOFTWARE_SUPPLIER_TAX_NUMBER ni nastavljen')
+  }
+  return taxNumber
+}
 
 const REQUEST_TIMEOUT_MS = 30000
 
@@ -72,7 +91,8 @@ export async function confirmInvoiceWithFurs(
     const endpoint = fursUrl(environment)
 
     console.log(`[furs] → ${environment} invoice=${fullRequest.invoiceNumber} msg=${messageId}`)
-    const responseXml = await postXmlToFurs(endpoint, signedXml, cert)
+    console.log(`[furs] InvoiceRequest XML: ${signedXml}`)
+    const responseXml = await postXmlToFurs(endpoint, signedXml, cert, '/invoices')
     console.log(`[furs] ← invoice=${fullRequest.invoiceNumber} response=${responseXml.slice(0, 2000)}`)
 
     const eor = parseFursResponse(responseXml)
@@ -89,30 +109,119 @@ export async function confirmInvoiceWithFurs(
   }
 }
 
-function postXmlToFurs(url: string, xmlBody: string, cert: CertificateInfo): Promise<string> {
+/**
+ * Registers a business premise with FURS (BusinessPremiseRequest) — required
+ * once before any invoice can be issued from that premise, or InvoiceRequest
+ * fails with S006. New/untested surface: verify the request structure
+ * against the real WSDL/XSD before relying on it for a real premise.
+ */
+export async function registerBusinessPremise(
+  companyId: string,
+  premiseId: string,
+  address?: FursPremiseAddress
+): Promise<void> {
+  const cert = await getActiveCertificate(companyId)
+  if (!cert) throw new FursError('NO_CERTIFICATE', 'Certifikat ni naložen')
+  validateCertificate(cert)
+
+  const xml = buildBusinessPremiseRequestXml({
+    taxNumber: cert.taxNumber,
+    businessPremiseId: premiseId,
+    address,
+    softwareSupplierTaxNumber: softwareSupplierTaxNumber(),
+    validityDate: new Date().toISOString().slice(0, 10),
+  })
+  const signedXml = signXmlWithPems(xml.xml, cert.privateKeyPem, cert.certificatePem)
+
+  const environment = await getFursEnvironment(companyId)
+  const endpoint = fursUrl(environment)
+
+  console.log(`[furs] → register premise=${premiseId} env=${environment}`)
+  console.log(`[furs] BusinessPremiseRequest XML: ${signedXml}`)
+  const responseXml = await postXmlToFurs(endpoint, signedXml, cert, '/invoices/register')
+  console.log(`[furs] ← register premise=${premiseId} response=${responseXml.slice(0, 2000)}`)
+
+  const errorCode = responseXml.match(/<[^>]*ErrorCode[^>]*>([^<]+)</)?.[1]?.trim()
+  if (errorCode) {
+    const message = FURS_ERROR_MESSAGES[errorCode]
+      ?? responseXml.match(/<[^>]*ErrorMessage[^>]*>([^<]+)</)?.[1]?.trim()
+      ?? 'FURS je zavrnil registracijo poslovnega prostora'
+    throw new FursError(errorCode, message)
+  }
+}
+
+/** Connectivity check via the FURS echo endpoint — a real SOAP round-trip, not just TCP. */
+export async function checkFursEcho(environment: FursEnvironment, cert: CertificateInfo): Promise<boolean> {
+  try {
+    const endpoint = fursUrl(environment)
+    console.log(`[furs] echo test → env=${environment} url=${endpoint}`)
+    const responseXml = await postXmlToFurs(endpoint, buildEchoRequestXml(), cert, '/echo')
+    const ok = /<[^>]*EchoResponse[^>]*>\s*test\s*</.test(responseXml)
+    if (!ok) console.error(`[furs] echo: nepričakovan odgovor (ni EchoResponse=test): ${responseXml.slice(0, 1000)}`)
+    return ok
+  } catch (err) {
+    console.error('[furs] echo test neuspešen:', err instanceof FursError ? `${err.code}: ${err.message}` : err)
+    return false
+  }
+}
+
+/** SOAPAction values from the FURS FiscalVerification WSDL — the server routes by this header. */
+type FursSoapAction = '/echo' | '/invoices' | '/invoices/register'
+
+function postXmlToFurs(
+  url: string,
+  xmlBody: string,
+  cert: CertificateInfo,
+  soapAction: FursSoapAction
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url)
+    const port = urlObj.port ? parseInt(urlObj.port) : 443
+
+    // FURS authenticates the client via mutual TLS: the cert/key from the .p12
+    // must be presented during the TLS handshake itself (signing the XML body
+    // is a separate, additional requirement). Node's fetch() cannot do this —
+    // an https.Agent with cert/key is required.
+    const agent = new https.Agent({
+      cert: cert.certificatePem,
+      key: cert.privateKeyPem,
+      // Intermediates from the .p12 (sigov-ca / si-trust-root) so the server
+      // chain can be verified where possible.
+      ca: cert.caPems.length > 0 ? cert.caPems : undefined,
+      minVersion: 'TLSv1.2',
+      rejectUnauthorized: false, // FURS test env uses its own CA
+    })
+
+    console.log(
+      `[furs] POST ${urlObj.href} (host=${urlObj.hostname} port=${port} path=${urlObj.pathname}) ` +
+      `mTLS cert=${cert.certificatePem ? 'attached' : 'MISSING'} key=${cert.privateKeyPem ? 'attached' : 'MISSING'} ca=${cert.caPems.length}`
+    )
 
     const options: https.RequestOptions = {
       hostname: urlObj.hostname,
-      port: urlObj.port ? parseInt(urlObj.port) : 443,
+      port,
       path: urlObj.pathname,
       method: 'POST',
+      agent,
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': '""',
+        'SOAPAction': `"${soapAction}"`,
         'Content-Length': Buffer.byteLength(xmlBody, 'utf8'),
       },
-      // FURS authenticates the client via mutual TLS with the same certificate.
-      pfx: Buffer.from(cert.p12Base64, 'base64'),
-      passphrase: cert.p12Password,
-      rejectUnauthorized: false, // FURS test env uses its own CA
     }
 
     const req = https.request(options, (res) => {
+      const socket = res.socket as import('tls').TLSSocket
+      console.log(
+        `[furs] TLS ok: protocol=${socket.getProtocol?.()} cipher=${socket.getCipher?.()?.name} ` +
+        `serverCertAuthorized=${socket.authorized} (${socket.authorizationError ?? 'no error'})`
+      )
+      console.log(`[furs] HTTP ${res.statusCode} headers=${JSON.stringify(res.headers)}`)
+
       let data = ''
       res.on('data', (chunk) => { data += chunk })
       res.on('end', () => {
+        console.log(`[furs] body (${data.length}b): ${data.slice(0, 2000)}`)
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           resolve(data)
         } else {
@@ -121,8 +230,20 @@ function postXmlToFurs(url: string, xmlBody: string, cert: CertificateInfo): Pro
       })
     })
 
-    req.on('error', (err) => reject(new FursError('NETWORK', err.message)))
+    req.on('error', (err) => {
+      const e = err as NodeJS.ErrnoException & { cause?: unknown }
+      console.error(`[furs] NAPAKA pri povezavi na ${urlObj.href}`, {
+        message: e.message,
+        code: e.code,
+        errno: e.errno,
+        syscall: e.syscall,
+        cause: e.cause,
+        stack: e.stack,
+      })
+      reject(new FursError('NETWORK', `${e.code ?? 'NETWORK'}: ${e.message} (${urlObj.href})`))
+    })
     req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      console.error(`[furs] TIMEOUT po ${REQUEST_TIMEOUT_MS}ms na ${urlObj.href}`)
       req.destroy()
       reject(new FursError('TIMEOUT', 'FURS ni odgovoril v 30 sekundah'))
     })
@@ -137,7 +258,8 @@ export function parseFursResponse(xml: string): string {
   const errorCode = xml.match(/<[^>]*ErrorCode[^>]*>([^<]+)</)?.[1]?.trim()
   const errorMessage = xml.match(/<[^>]*ErrorMessage[^>]*>([^<]+)</)?.[1]?.trim()
   if (errorCode || errorMessage) {
-    throw new FursError(errorCode ?? 'FURS_ERROR', errorMessage ?? 'FURS je zavrnil račun')
+    const message = (errorCode && FURS_ERROR_MESSAGES[errorCode]) ?? errorMessage ?? 'FURS je zavrnil račun'
+    throw new FursError(errorCode ?? 'FURS_ERROR', message)
   }
 
   const eor = xml.match(/<[^>]*UniqueInvoiceID[^>]*>([^<]+)</)?.[1]?.trim()
@@ -145,29 +267,3 @@ export function parseFursResponse(xml: string): string {
   return eor
 }
 
-/** Reachability probe for the status indicator — not an API call, just TCP/TLS. */
-export async function checkFursConnection(environment: string): Promise<boolean> {
-  try {
-    const urlObj = new URL(fursUrl(environment as FursEnvironment))
-    return await new Promise<boolean>((resolve) => {
-      const req = https.request(
-        {
-          hostname: urlObj.hostname,
-          port: urlObj.port ? parseInt(urlObj.port) : 443,
-          path: urlObj.pathname,
-          method: 'HEAD',
-          rejectUnauthorized: false,
-        },
-        () => resolve(true)
-      )
-      req.on('error', () => resolve(false))
-      req.setTimeout(5000, () => {
-        req.destroy()
-        resolve(false)
-      })
-      req.end()
-    })
-  } catch {
-    return false
-  }
-}

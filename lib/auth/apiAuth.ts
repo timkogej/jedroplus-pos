@@ -33,6 +33,9 @@ export async function authenticateRequest(
 ): Promise<{ user: AuthedUser } | { response: NextResponse }> {
   const token = getBearerToken(req)
   if (!token) {
+    console.warn(
+      `[auth] 401 ${req.nextUrl.pathname}: Authorization header ${req.headers.has('Authorization') ? 'present but empty' : 'missing'}`
+    )
     return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   }
 
@@ -43,6 +46,7 @@ export async function authenticateRequest(
   } = await supabase.auth.getUser(token)
 
   if (error || !user) {
+    console.warn(`[auth] 401 ${req.nextUrl.pathname}: neveljaven token (${error?.message ?? 'no user'})`)
     return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   }
 
@@ -77,6 +81,9 @@ export async function requireCompanyAccess(
 
   const ownCompanyId = await getUserCompanyId(auth.user.id)
   if (!ownCompanyId || ownCompanyId !== companyId) {
+    console.warn(
+      `[auth] 403 ${req.nextUrl.pathname}: user=${auth.user.id} company=${ownCompanyId ?? 'none'} zahteval=${companyId}`
+    )
     return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 

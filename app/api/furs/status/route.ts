@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkFursConnection, getActiveCertificate, getFursEnvironment } from '@/lib/furs/api'
+import { checkFursEcho, getActiveCertificate, getFursEnvironment } from '@/lib/furs/api'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 
 /**
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const reachable = await checkFursConnection(environment)
+    const reachable = await checkFursEcho(environment, cert)
 
     return NextResponse.json({
       status: reachable ? 'connected' : 'error',
