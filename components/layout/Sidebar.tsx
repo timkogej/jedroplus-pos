@@ -90,7 +90,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
     },
     {
       href: `${base}/z-report`,
-      label: 'Z-poročilo',
+      label: 'Z poročilo',
       badge: zReportWarning,
       icon: (
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -110,16 +110,18 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
     },
   ]
 
+  function isNavItemActive(href: string) {
+    if (href === `${base}/invoices`) {
+      return pathname === href || (pathname.startsWith(href + '/') && !pathname.startsWith(`${base}/invoices/new`))
+    }
+    return pathname === href || pathname.startsWith(href + '/')
+  }
+
   return (
-    <aside className="hidden md:flex flex-col w-56 min-h-screen bg-white border-r border-gray-100">
+    <aside className="hidden md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:w-56 flex-col h-screen bg-white border-r border-gray-100">
       {/* Logo */}
       <div className="p-5 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl gradient-bg flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 32 32" fill="none">
-              <path d="M16 4V28M4 16H28" stroke="white" strokeWidth="3.5" strokeLinecap="round"/>
-            </svg>
-          </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{companyName}</p>
             <p className="text-xs text-gray-400">Davčna blagajna</p>
@@ -128,9 +130,9 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-0.5">
+      <nav className="min-h-0 flex-1 overflow-y-auto p-3 space-y-0.5">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+          const isActive = isNavItemActive(item.href)
           return (
             <Link key={item.href} href={item.href}>
               <div className={`
@@ -163,7 +165,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-gray-100 space-y-0.5">
+      <div className="flex-shrink-0 p-3 border-t border-gray-100 space-y-0.5">
         <FursStatusIndicator slug={slug} />
         <button
           onClick={handleLogout}

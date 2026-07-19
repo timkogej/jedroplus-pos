@@ -56,11 +56,13 @@ export default async function InvoicesPage({ params }: { params: { slug: string 
         slug={params.slug}
         title="Računi"
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <AccountingExportButton companyId={company.id} isPro={isPro} />
             <ExportInvoicesButton companyId={company.id} />
             <Link href={`/${params.slug}/invoices/new`}>
-              <Button size="sm">+ Nov račun</Button>
+              <Button size="sm" className="gradient-bg px-2.5 text-xs text-white hover:opacity-95 sm:px-3 sm:text-sm">
+                + Nov račun
+              </Button>
             </Link>
           </div>
         }

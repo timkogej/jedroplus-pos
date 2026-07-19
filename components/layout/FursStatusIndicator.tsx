@@ -13,7 +13,13 @@ const STATUS_UI: Record<Exclude<FursStatus, 'loading'>, { dot: string; label: st
   error:     { dot: 'bg-red-500',   label: 'FURS: Napaka' },
 }
 
-export default function FursStatusIndicator({ slug }: { slug: string }) {
+interface FursStatusIndicatorProps {
+  slug: string
+  compact?: boolean
+  className?: string
+}
+
+export default function FursStatusIndicator({ slug, compact = false, className = '' }: FursStatusIndicatorProps) {
   const [status, setStatus] = useState<FursStatus>('loading')
   const [message, setMessage] = useState<string | null>(null)
 
@@ -58,7 +64,7 @@ export default function FursStatusIndicator({ slug }: { slug: string }) {
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500"
+      className={`${compact ? 'inline-flex rounded-full border border-gray-100 bg-white px-2.5 py-1' : 'flex px-3 py-2'} items-center gap-2 text-xs text-gray-500 ${className}`}
       title={message ?? ui.label}
     >
       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ui.dot}`} />

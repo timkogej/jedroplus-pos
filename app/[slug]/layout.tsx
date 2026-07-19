@@ -91,7 +91,7 @@ export default async function CompanyLayout({
     <AuthGuard slug={params.slug}>
       <div className="flex min-h-screen">
         <Sidebar slug={params.slug} companyName={displayName} />
-        <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+        <div className="flex-1 flex flex-col min-w-0 pb-16 md:ml-56 md:pb-0">
           {showMissedClosing && <MissedClosingBanner slug={params.slug} date={yesterday} />}
           {showCanceledBanner ? (
             <SubscriptionBanner

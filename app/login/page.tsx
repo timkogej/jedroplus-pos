@@ -6,7 +6,20 @@ import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
 import { resolveCompanyForUser } from '@/lib/auth/resolveCompany'
 import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
+
+const loginInfoText = 'Uporabite iste prijavne podatke kot v aplikaciji Jedro+.'
+
+function LoginInfoIcon() {
+  return (
+    <span
+      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-500"
+      title={loginInfoText}
+      aria-label={loginInfoText}
+    >
+      i
+    </span>
+  )
+}
 
 function LoginPageInner() {
   const router = useRouter()
@@ -91,7 +104,7 @@ function LoginPageInner() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4">
       <div className="w-full max-w-sm">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -99,13 +112,8 @@ function LoginPageInner() {
           transition={{ duration: 0.4 }}
           className="text-center mb-8"
         >
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl gradient-bg mb-4">
-            <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-              <path d="M16 4V28M4 16H28" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <h1 className="text-2xl font-semibold text-gray-900">Jedro+</h1>
-          <p className="text-sm text-gray-500 mt-1">Davčna blagajna</p>
+          <h1 className="text-4xl font-semibold gradient-text">Jedro+</h1>
+          <p className="text-base font-medium text-white mt-2">Davčna blagajna</p>
         </motion.div>
 
         <motion.div
@@ -117,18 +125,35 @@ function LoginPageInner() {
           <h2 className="text-base font-semibold text-gray-900 mb-5">Prijava</h2>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <Input
-              label="E-pošta"
-              type="email"
-              placeholder="ime@podjetje.si"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
+            <div className="rounded-xl border border-[#6D5EF7]/15 bg-[#6D5EF7]/5 px-3 py-2.5 text-sm text-gray-600">
+              <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#6D5EF7] ring-1 ring-[#6D5EF7]/20">
+                i
+              </span>
+              {loginInfoText}
+            </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Geslo</label>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                E-pošta
+                <LoginInfoIcon />
+              </label>
+              <input
+                type="email"
+                placeholder="ime@podjetje.si"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                disabled={loading}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 transition-all duration-150 placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                Geslo
+                <LoginInfoIcon />
+              </label>
               <div className="relative">
                 <input
                   type={showPw ? 'text' : 'password'}
@@ -137,12 +162,14 @@ function LoginPageInner() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="w-full px-3.5 py-2.5 pr-10 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900"
+                  disabled={loading}
+                  className="w-full px-3.5 py-2.5 pr-10 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors"
+                  disabled={loading}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   tabIndex={-1}
                 >
                   {showPw ? (
@@ -159,6 +186,18 @@ function LoginPageInner() {
               </div>
             </div>
 
+            {loading && (
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-[#6D5EF7]" />
+                  Prijavljam v davčno blagajno...
+                </div>
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-200">
+                  <div className="h-full w-1/2 animate-pulse rounded-full gradient-bg" />
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
                 {error}
@@ -166,12 +205,12 @@ function LoginPageInner() {
             )}
 
             <Button type="submit" loading={loading} className="w-full" size="lg">
-              Prijava
+              {loading ? 'Prijavljam...' : 'Prijava'}
             </Button>
           </form>
         </motion.div>
 
-        <p className="text-center text-xs text-gray-400 mt-4">Jedro+ · ZDavPR 2024</p>
+        <p className="text-center text-xs text-white/70 mt-4">Jedro+ · ZDavPR 2024</p>
       </div>
     </div>
   )

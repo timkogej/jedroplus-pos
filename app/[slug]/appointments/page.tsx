@@ -41,7 +41,7 @@ export default async function AppointmentsPage({ params }: { params: { slug: str
         title="Termini"
         action={
           <Link href={`/${params.slug}/invoices/new`}>
-            <Button size="sm">+ Nov račun</Button>
+            <Button size="sm" className="gradient-bg text-white hover:opacity-95">+ Nov račun</Button>
           </Link>
         }
       />
