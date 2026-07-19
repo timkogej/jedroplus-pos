@@ -110,22 +110,26 @@ function LoginPageInner() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="text-center mb-8"
+          className="text-center mb-7"
         >
-          <h1 className="text-4xl font-semibold gradient-text">Jedro+</h1>
-          <p className="text-base font-medium text-white mt-2">Davčna blagajna</p>
+          <h1 className="text-4xl font-semibold text-white">Jedro+</h1>
+          <div className="mx-auto mt-3 h-1 w-20 rounded-full gradient-bg" />
+          <p className="text-base font-medium text-white/85 mt-4">Davčna blagajna</p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.4 }}
-          className="bg-white rounded-2xl border border-gray-100 p-6"
+          className="bg-white rounded-2xl border border-white/10 p-6 shadow-2xl shadow-black/40"
         >
-          <h2 className="text-base font-semibold text-gray-900 mb-5">Prijava</h2>
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-gray-900">Prijava</h2>
+            <p className="mt-1 text-sm text-gray-500">Vstop v davčno blagajno</p>
+          </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="rounded-xl border border-[#6D5EF7]/15 bg-[#6D5EF7]/5 px-3 py-2.5 text-sm text-gray-600">
+            <div className="rounded-xl border border-[#6D5EF7]/15 bg-gradient-to-r from-[#6D5EF7]/8 via-[#2F80ED]/8 to-[#2AD4C5]/8 px-3 py-2.5 text-sm text-gray-600">
               <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#6D5EF7] ring-1 ring-[#6D5EF7]/20">
                 i
               </span>
@@ -204,7 +208,7 @@ function LoginPageInner() {
               </div>
             )}
 
-            <Button type="submit" loading={loading} className="w-full" size="lg">
+            <Button type="submit" loading={loading} className="w-full gradient-bg text-white hover:opacity-95" size="lg">
               {loading ? 'Prijavljam...' : 'Prijava'}
             </Button>
           </form>
