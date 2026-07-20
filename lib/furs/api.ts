@@ -39,15 +39,55 @@ function fursUrl(environment: FursEnvironment): string {
 /** Loads the company's active certificate, or null when none is uploaded. */
 export async function getActiveCertificate(companyId: string): Promise<CertificateInfo | null> {
   const supabase = createServiceClient()
+
+  // Log every certificate row for this company so we can tell a key-mismatch
+  // apart from "wrong row is active" (e.g. stale test cert left active).
+  const { data: allCertRows } = await supabase
+    .from('pos_certificates')
+    .select('id, company_id, created_at, is_active, tax_number')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+
+  console.log(
+    `[furs][cert] ${allCertRows?.length ?? 0} certificate row(s) for company_id=${companyId}:`,
+    allCertRows?.map((r) => `id=${r.id} tax_number=${r.tax_number} is_active=${r.is_active} created_at=${r.created_at}`)
+  )
+
+  const activeRows = allCertRows?.filter((r) => r.is_active) ?? []
+  if (activeRows.length > 1) {
+    console.warn(
+      `[furs][cert] WARNING: ${activeRows.length} active certificate rows for company_id=${companyId} — only one should be active. ids=${activeRows.map((r) => r.id).join(', ')}`
+    )
+  }
+
   const { data: certRow } = await supabase
     .from('pos_certificates')
-    .select('certificate_data, certificate_password')
+    .select('id, company_id, created_at, certificate_data, certificate_password')
     .eq('company_id', companyId)
     .eq('is_active', true)
     .maybeSingle()
 
   if (!certRow) return null
-  return loadCertificate(certRow.certificate_data, certRow.certificate_password)
+
+  console.log(
+    `[furs][cert] loading certificate id=${certRow.id} company_id=${certRow.company_id} created_at=${certRow.created_at}`
+  )
+
+  try {
+    return await loadCertificate(certRow.certificate_data, certRow.certificate_password)
+  } catch (err) {
+    const isAuthTagError =
+      err instanceof Error &&
+      /unsupported state|unable to authenticate data/i.test(err.message)
+    console.error(
+      `[furs][cert] FAILED to decrypt certificate id=${certRow.id} company_id=${certRow.company_id} created_at=${certRow.created_at}.` +
+        (isAuthTagError
+          ? ' This is an AES-256-GCM auth-tag failure — almost always means CERTIFICATE_ENCRYPTION_KEY does not match the key used when this row was encrypted (env changed/rotated), or the stored ciphertext is corrupted.'
+          : ''),
+      err
+    )
+    throw err
+  }
 }
 
 export async function getFursEnvironment(companyId: string): Promise<FursEnvironment> {

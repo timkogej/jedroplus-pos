@@ -26,8 +26,25 @@ export async function loadCertificate(
   encryptedP12Base64: string,
   encryptedPassword: string
 ): Promise<CertificateInfo> {
-  const p12Base64 = decrypt(encryptedP12Base64)
-  const password = decrypt(encryptedPassword)
+  let p12Base64: string
+  let password: string
+  try {
+    p12Base64 = decrypt(encryptedP12Base64)
+    password = decrypt(encryptedPassword)
+  } catch (err) {
+    const isAuthTagError =
+      err instanceof Error &&
+      /unsupported state|unable to authenticate data/i.test(err.message)
+    console.error(
+      '[furs][cert] AES-256-GCM decryption failed for stored .p12/password.' +
+        (isAuthTagError
+          ? ' Auth-tag mismatch — CERTIFICATE_ENCRYPTION_KEY used to decrypt does not match the key used to encrypt this row (check for a changed/rotated env var between .env.local and the deploy environment), or the ciphertext in the DB is corrupted.'
+          : ''),
+      { keyLength: process.env.CERTIFICATE_ENCRYPTION_KEY?.length ?? 'unset (using fallback key)' },
+      err
+    )
+    throw err
+  }
   return parseP12(p12Base64, password)
 }
 
