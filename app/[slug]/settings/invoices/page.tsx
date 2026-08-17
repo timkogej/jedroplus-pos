@@ -128,7 +128,7 @@ export default function InvoiceSettingsPage() {
   const params = useParams()
   const slug = params.slug as string
 
-  const [settingsId, setSettingsId] = useState('')
+  const [companyId, setCompanyId]   = useState('')
   const [prefix, setPrefix]         = useState('R')
   const [counter, setCounter]       = useState(1)
   const [format, setFormat]         = useState<FormatId>('PREFIX-LETO4-PROSTOR-NAPRAVA-STEVILKA')
@@ -145,17 +145,27 @@ export default function InvoiceSettingsPage() {
   // ── Load settings ──────────────────────────────────────────
   useEffect(() => {
     async function load() {
-      const { data: company } = await supabase.from('companies').select('id').eq('slug', slug).single()
-      if (!company) return
+      const { data: company, error: companyErr } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('slug', slug)
+        .single()
+      if (companyErr || !company) {
+        setError(companyErr?.message ?? 'Podjetje ni najdeno')
+        setLoading(false)
+        return
+      }
+      setCompanyId(company.id)
 
-      const { data: s } = await supabase
+      const { data: s, error: settingsErr } = await supabase
         .from('pos_settings')
         .select('id, invoice_prefix, invoice_counter, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, invoice_year_reset')
         .eq('company_id', company.id)
-        .maybeSingle() as { data: Settings | null }
+        .maybeSingle() as { data: Settings | null; error: { message: string } | null }
 
-      if (s) {
-        setSettingsId(s.id)
+      if (settingsErr) {
+        setError(settingsErr.message)
+      } else if (s) {
         setPrefix(s.invoice_prefix ?? 'R')
         setCounter(s.invoice_counter ?? 1)
         setFormat((s.invoice_format as FormatId) ?? 'PREFIX-LETO4-PROSTOR-NAPRAVA-STEVILKA')
@@ -182,23 +192,26 @@ export default function InvoiceSettingsPage() {
 
   // ── Save ───────────────────────────────────────────────────
   async function save() {
-    if (!settingsId) return
+    if (!companyId) return
     setSaving(true)
     setError('')
 
     const { error: err } = await supabase
       .from('pos_settings')
-      .update({
-        invoice_prefix:        prefix,
-        invoice_counter:       counter,
-        invoice_format:        format,
-        invoice_separator:     effectiveSep,
-        invoice_number_length: numLen,
-        invoice_year_format:   yearFmt,
-        invoice_year_reset:    yearReset,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', settingsId)
+      .upsert(
+        {
+          company_id:             companyId,
+          invoice_prefix:        prefix,
+          invoice_counter:       counter,
+          invoice_format:        format,
+          invoice_separator:     effectiveSep,
+          invoice_number_length: numLen,
+          invoice_year_format:   yearFmt,
+          invoice_year_reset:    yearReset,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'company_id' }
+      )
 
     setSaving(false)
     if (err) {

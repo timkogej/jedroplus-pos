@@ -5,13 +5,12 @@ import {
   getPriceId,
   isValidInterval,
   isValidPlan,
-  TRIAL_DAYS,
 } from '@/lib/subscription-plans'
 
 export const runtime = 'nodejs'
 
 /**
- * Starts a subscription with a 7-day free trial via Stripe Checkout.
+ * Starts a subscription via Stripe Checkout.
  *
  * Input: { plan: 'plus' | 'pro', interval: 'monthly' | 'yearly' }
  *
@@ -20,10 +19,11 @@ export const runtime = 'nodejs'
  * found" errors when the client hasn't resolved/sent a companyId yet, and is
  * also safer (a user can only ever subscribe their own company).
  *
- * A card is collected up front in Stripe's hosted Checkout, but the customer is
- * not charged until the trial ends. We return the Checkout Session URL; the
- * frontend redirects the browser there. The pos_subscriptions row is written by
- * the `checkout.session.completed` webhook — NOT here.
+ * No free trial: a FURS certificate is required before real invoices can be
+ * issued anyway, so the customer is charged immediately at checkout. We
+ * return the Checkout Session URL; the frontend redirects the browser there.
+ * The pos_subscriptions row is written by the `checkout.session.completed`
+ * webhook — NOT here.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
-    // --- Create the Checkout Session (subscription mode, 7-day trial) -------
+    // --- Create the Checkout Session (subscription mode, no trial) ---------
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       // Reuse the existing Stripe customer if we have one, otherwise let
@@ -116,9 +116,7 @@ export async function POST(req: NextRequest) {
         ? { customer: existingSub.stripe_customer_id }
         : { customer_email: email }),
       line_items: [{ price: priceId, quantity: 1 }],
-      payment_method_collection: 'always',
       subscription_data: {
-        trial_period_days: TRIAL_DAYS,
         metadata: { companyId, plan, interval },
       },
       metadata: { companyId, plan, interval },

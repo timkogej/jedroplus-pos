@@ -51,10 +51,6 @@ const PLANS = {
 
 const FAQ = [
   {
-    q: 'Kako deluje brezplačni preizkus?',
-    a: 'Ob registraciji dobite 7 dni popolnega dostopa brez plačila. Naročnino lahko prekličete kadarkoli pred koncem preizkusa in vam ne bo nič zaračunano.',
-  },
-  {
     q: 'Ali sem vezan na pogodbo?',
     a: 'Ne. Naročnina je mesečna ali letna in jo lahko prekličete kadarkoli. Po preklicu imate dostop do konca plačanega obdobja.',
   },
@@ -90,7 +86,7 @@ function PricingPageInner() {
     isValidInterval(intervalParam) ? intervalParam : 'monthly',
   )
   // A plan pre-selected via the URL (e.g. after a login round-trip). When set,
-  // we highlight that card and show "Nadaljuj z …" instead of "Začni brezplačno".
+  // we highlight that card and show "Nadaljuj z …" instead of "Naroči se".
   const planParam = searchParams.get('plan')
   const preselectedPlan: PlanId | null = isValidPlan(planParam) ? planParam : null
   const [companyId, setCompanyId] = useState<string | null>(storedCompanyId)
@@ -120,7 +116,7 @@ function PricingPageInner() {
     resolve()
   }, [companyId, slug, setCompanyData])
 
-  async function startTrial(plan: PlanId) {
+  async function startCheckout(plan: PlanId) {
     setError('')
 
     // Public page: if the visitor isn't logged in, send them to /login and
@@ -165,7 +161,7 @@ function PricingPageInner() {
     if (!companyId) return
     if (!preselectedPlan) return
     autoStarted.current = true
-    startTrial(preselectedPlan)
+    startCheckout(preselectedPlan)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, preselectedPlan])
 
@@ -187,7 +183,7 @@ function PricingPageInner() {
             Izberite svoj <span className="gradient-text">paket</span>
           </h1>
           <p className="text-gray-500 mt-3 max-w-md mx-auto">
-            Začnite s 7-dnevnim brezplačnim preizkusom. Brez vezave, preklič kadarkoli.
+            Naročite se zdaj. Brez vezave, prekličite kadarkoli.
           </p>
         </motion.div>
 
@@ -253,16 +249,15 @@ function PricingPageInner() {
                 </p>
 
                 <Button
-                  onClick={() => startTrial(planId)}
+                  onClick={() => startCheckout(planId)}
                   loading={submitting === planId}
                   disabled={!!submitting}
                   variant={highlight ? 'primary' : 'secondary'}
                   size="lg"
                   className="w-full mt-5"
                 >
-                  {isPreselected ? `Nadaljuj z ${plan.name}` : 'Začni brezplačno'}
+                  {isPreselected ? `Nadaljuj z ${plan.name}` : 'Naroči se'}
                 </Button>
-                <p className="text-[11px] text-center text-gray-400 mt-2">7-dnevni brezplačni preizkus</p>
 
                 <ul className="mt-6 space-y-3">
                   {plan.features.map((f) => (
@@ -284,7 +279,7 @@ function PricingPageInner() {
         )}
 
         <p className="text-center text-sm text-gray-500 mt-8">
-          7-dnevni brezplačni preizkus • Brez vezave • Prekliči kadarkoli
+          Brez vezave • Prekliči kadarkoli
         </p>
 
         {/* FAQ */}

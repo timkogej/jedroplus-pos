@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/furs/retry",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/z-report/send-reminders",
+      "schedule": "0 22 * * *"
+    }
+  ]
+}

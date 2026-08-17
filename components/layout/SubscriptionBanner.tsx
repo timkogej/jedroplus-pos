@@ -6,15 +6,8 @@ import { authFetch } from '@/lib/authFetch'
 interface SubscriptionBannerProps {
   slug: string
   companyId: string
-  status: 'trialing' | 'past_due' | 'canceled'
-  trialEndsAt?: string | null
+  status: 'past_due' | 'canceled'
   currentPeriodEnd?: string | null
-}
-
-function daysLeft(trialEndsAt?: string | null): number {
-  if (!trialEndsAt) return 0
-  const ms = new Date(trialEndsAt).getTime() - Date.now()
-  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)))
 }
 
 function formatDate(iso?: string | null): string {
@@ -22,7 +15,7 @@ function formatDate(iso?: string | null): string {
   return new Date(iso).toLocaleDateString('sl-SI', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-export default function SubscriptionBanner({ slug, companyId, status, trialEndsAt, currentPeriodEnd }: SubscriptionBannerProps) {
+export default function SubscriptionBanner({ slug, companyId, status, currentPeriodEnd }: SubscriptionBannerProps) {
   // Dismissible per session (sessionStorage) so it reappears on next visit.
   const storageKey = `subbanner-dismissed-${status}`
   const [dismissed, setDismissed] = useState(() => {
@@ -104,32 +97,5 @@ export default function SubscriptionBanner({ slug, companyId, status, trialEndsA
     )
   }
 
-  const left = daysLeft(trialEndsAt)
-  return (
-    <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5">
-      <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
-        <p className="text-sm text-amber-800">
-          Vaš brezplačni preizkus poteče čez{' '}
-          <span className="font-semibold">{left} {left === 1 ? 'dan' : left === 2 ? 'dneva' : 'dni'}</span>. Aktivirajte naročnino.
-        </p>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Link
-            href="/pricing"
-            className="text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg"
-          >
-            Aktiviraj zdaj
-          </Link>
-          <button
-            onClick={dismiss}
-            className="text-amber-500 hover:text-amber-700 p-1"
-            title="Skrij"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+  return null
 }

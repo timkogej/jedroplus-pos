@@ -6,12 +6,23 @@ import { sendZReportReminder } from '@/lib/z-report/reminder'
 /**
  * Daily reminder cron. Protected by CRON_SECRET.
  *
- * Trigger with:  Authorization: Bearer $CRON_SECRET
+ * Vercel Cron Jobs trigger with a GET request, automatically sending
+ * `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is set as a project
+ * env var — see vercel.json. POST is also exposed for manual/local testing
+ * with the same header.
  *
  * Sends a "close your register" email to every company with an active
  * subscription that has invoices today but no Z-report yet.
  */
+export async function GET(req: NextRequest) {
+  return handleSendReminders(req)
+}
+
 export async function POST(req: NextRequest) {
+  return handleSendReminders(req)
+}
+
+async function handleSendReminders(req: NextRequest) {
   const secret = process.env.CRON_SECRET
   const provided = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
   if (!secret || provided !== secret) {

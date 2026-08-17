@@ -6,8 +6,6 @@
 export type PlanId = 'plus' | 'pro'
 export type BillingInterval = 'monthly' | 'yearly'
 
-export const TRIAL_DAYS = 7
-
 /** Resolves the Stripe price ID for a plan + interval, or throws if unset. */
 export function getPriceId(plan: PlanId, interval: BillingInterval): string {
   const key =

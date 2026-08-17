@@ -101,12 +101,11 @@ export default async function CompanyLayout({
               currentPeriodEnd={currentPeriodEnd}
             />
           ) : (
-            (status === 'trialing' || status === 'past_due') && (
+            status === 'past_due' && (
               <SubscriptionBanner
                 slug={params.slug}
                 companyId={company.id}
                 status={status}
-                trialEndsAt={subscription?.trial_ends_at ?? null}
               />
             )
           )}

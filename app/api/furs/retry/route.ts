@@ -10,13 +10,24 @@ const MAX_RETRIES = 3
 /**
  * FURS offline retry cron. Protected by CRON_SECRET.
  *
- * Trigger with:  Authorization: Bearer $CRON_SECRET
+ * Vercel Cron Jobs trigger with a GET request, automatically sending
+ * `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is set as a project
+ * env var — see vercel.json. POST is also exposed for manual/local testing
+ * with the same header.
  *
  * Re-submits every 'pending_furs' invoice (issued while FURS was unreachable)
  * with SubsequentSubmit=true. On success the invoice gets its EOR and goes
  * back to 'issued' (or 'storno'); after MAX_RETRIES failures → 'furs_failed'.
  */
+export async function GET(req: NextRequest) {
+  return handleRetry(req)
+}
+
 export async function POST(req: NextRequest) {
+  return handleRetry(req)
+}
+
+async function handleRetry(req: NextRequest) {
   const secret = process.env.CRON_SECRET
   const provided = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
   if (!secret || provided !== secret) {

@@ -5,9 +5,10 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 
 /**
- * Shows a welcome modal after a successful Stripe Checkout (the trial flow
- * redirects to the dashboard with ?subscription=success). The query param is
- * removed from the URL once shown so a refresh doesn't re-trigger it.
+ * Shows a welcome modal after a successful Stripe Checkout (the /pricing
+ * signup flow redirects to the dashboard with ?subscription=success). The
+ * query param is removed from the URL once shown so a refresh doesn't
+ * re-trigger it.
  */
 export default function SubscriptionSuccessToast() {
   const router = useRouter()
@@ -34,7 +35,7 @@ export default function SubscriptionSuccessToast() {
           </svg>
         </div>
         <p className="text-sm text-gray-700 leading-relaxed">
-          Vaš 7-dnevni preizkus je aktiven. Kartica bo obremenjena po poteku preizkusa.
+          Vaša naročnina je aktivna. Dobrodošli v Jedro+!
         </p>
         <Button onClick={() => setOpen(false)} className="w-full">
           Začnimo
