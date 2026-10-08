@@ -183,7 +183,7 @@ export default function ZReportClient({
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="npr. menjava blagajnika, popravek ..."
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6D5EF7]/30 focus:border-[#6D5EF7]"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
             />
           </div>
 
@@ -261,7 +261,7 @@ export default function ZReportClient({
                         <button
                           onClick={() => downloadPdf(r)}
                           disabled={downloadingId === r.id}
-                          className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-[#6D5EF7] disabled:opacity-50"
+                          className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-brand disabled:opacity-50"
                           title="Prenesi PDF"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -316,9 +316,9 @@ export default function ZReportClient({
 
 function PreviewStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-xl border p-3 ${highlight ? 'border-[#6D5EF7]/20 bg-[#6D5EF7]/5' : 'border-gray-100 bg-gray-50/50'}`}>
+    <div className={`rounded-xl border p-3 ${highlight ? 'border-brand/20 bg-brand/5' : 'border-gray-100 bg-gray-50/50'}`}>
       <p className="text-xs text-gray-500">{label}</p>
-      <p className={`text-lg font-semibold mt-0.5 ${highlight ? 'text-[#6D5EF7]' : 'text-gray-900'}`}>{value}</p>
+      <p className={`text-lg font-semibold mt-0.5 ${highlight ? 'text-brand' : 'text-gray-900'}`}>{value}</p>
     </div>
   )
 }

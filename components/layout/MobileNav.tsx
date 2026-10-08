@@ -82,12 +82,12 @@ export default function MobileNav({ slug }: MobileNavProps) {
                   <span className="text-white block">{item.icon}</span>
                 </div>
               ) : (
-                <span className={`transition-colors ${isActive ? 'text-[#6D5EF7]' : 'text-gray-400'}`}>
+                <span className={`transition-colors ${isActive ? 'text-brand' : 'text-gray-400'}`}>
                   {item.icon}
                 </span>
               )}
               {!item.center && (
-                <span className={`text-[10px] transition-colors ${isActive ? 'text-[#6D5EF7] font-medium' : 'text-gray-400'}`}>
+                <span className={`text-[10px] transition-colors ${isActive ? 'text-brand font-medium' : 'text-gray-400'}`}>
                   {item.label}
                 </span>
               )}

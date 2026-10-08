@@ -36,24 +36,19 @@ function LoginPageInner() {
     setError('')
     setLoading(true)
 
-    console.log('[login] form submitted, email:', email)
 
     try {
       // Step 1: auth — must succeed before any DB query
-      console.log('[login] step 1: calling signInWithPassword...')
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      console.log('[login] step 1 result:', { user: authData?.user?.id, error: authError?.message })
 
       if (authError) throw new Error(authError.message)
       if (!authData.user) throw new Error('Prijava ni uspela')
 
       // Step 2-4: resolve company via profiles table
-      console.log('[login] step 2: resolving company for uid:', authData.user.id)
       const company = await resolveCompanyForUser(supabase, authData.user.id)
-      console.log('[login] step 2 result:', company)
 
       if (!company) {
         await supabase.auth.signOut()
@@ -92,7 +87,6 @@ function LoginPageInner() {
         return
       }
 
-      console.log('[login] step 3: storing company data, redirecting to /' + company.slug + '/dashboard')
       router.push(`/${company.slug}/dashboard`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Napaka pri prijavi'
@@ -129,8 +123,8 @@ function LoginPageInner() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="rounded-xl border border-[#6D5EF7]/15 bg-gradient-to-r from-[#6D5EF7]/8 via-[#2F80ED]/8 to-[#2AD4C5]/8 px-3 py-2.5 text-sm text-gray-600">
-              <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#6D5EF7] ring-1 ring-[#6D5EF7]/20">
+            <div className="rounded-xl border border-brand/15 bg-gradient-to-r from-brand/8 via-[#2F80ED]/8 to-[#2AD4C5]/8 px-3 py-2.5 text-sm text-gray-600">
+              <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-brand ring-1 ring-brand/20">
                 i
               </span>
               {loginInfoText}
@@ -193,7 +187,7 @@ function LoginPageInner() {
             {loading && (
               <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
                 <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-[#6D5EF7]" />
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-brand" />
                   Prijavljam v davčno blagajno...
                 </div>
                 <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-200">

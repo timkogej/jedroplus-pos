@@ -135,7 +135,7 @@ export default function OnboardingStep1() {
   if (loading) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#6D5EF7] border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
       </div>
     )
   }

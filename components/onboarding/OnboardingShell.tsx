@@ -1,5 +1,7 @@
 'use client'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface Props {
   slug: string
@@ -19,9 +21,10 @@ interface Props {
 export default function OnboardingShell({ slug, step, companyName, title, subtitle, children }: Props) {
   const router = useRouter()
 
+  const [confirmSkip, setConfirmSkip] = useState(false)
+
   function skip() {
-    const ok = window.confirm('Brez nastavitev ne boste mogli izdajati računov. Želite vseeno nadaljevati?')
-    if (!ok) return
+    setConfirmSkip(false)
     // Remember the skip so the dashboard doesn't bounce the user straight back
     // into onboarding. Read server-side from cookies() on the dashboard.
     document.cookie = `onboarding_skipped=${slug}; path=/; max-age=${60 * 60 * 24 * 365}`
@@ -31,13 +34,13 @@ export default function OnboardingShell({ slug, step, companyName, title, subtit
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-gray-50">
       {/* Slim brand gradient header bar */}
-      <div className="h-1.5 w-full bg-gradient-to-r from-[#6D5EF7] to-[#2AD4C5]" />
+      <div className="h-1.5 w-full bg-gradient-to-r from-brand to-[#2AD4C5]" />
 
       <div className="mx-auto w-full max-w-[600px] px-4 py-8 md:py-12">
         {/* Top row: brand + progress */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#6D5EF7] to-[#2AD4C5] text-[13px] font-bold text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-[#2AD4C5] text-[13px] font-bold text-white">
               J
             </div>
             <span className="text-sm font-semibold text-gray-900">
@@ -47,8 +50,8 @@ export default function OnboardingShell({ slug, step, companyName, title, subtit
           <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
             <span>Korak {step} od 2</span>
             <span className="text-base leading-none tracking-tight">
-              <span className="text-[#6D5EF7]">●</span>
-              <span className={step >= 2 ? 'text-[#6D5EF7]' : 'text-gray-300'}>{step >= 2 ? '●' : '○'}</span>
+              <span className="text-brand">●</span>
+              <span className={step >= 2 ? 'text-brand' : 'text-gray-300'}>{step >= 2 ? '●' : '○'}</span>
             </span>
           </div>
         </div>
@@ -65,13 +68,22 @@ export default function OnboardingShell({ slug, step, companyName, title, subtit
         {/* Skip link */}
         <div className="mt-4 text-right">
           <button
-            onClick={skip}
+            onClick={() => setConfirmSkip(true)}
             className="text-xs text-gray-400 transition-colors hover:text-gray-600"
           >
             Preskočite nastavitev
           </button>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmSkip}
+        title="Preskok nastavitve"
+        message="Brez nastavitev ne boste mogli izdajati računov. Želite vseeno nadaljevati?"
+        confirmLabel="Preskoči"
+        cancelLabel="Nadaljuj z nastavitvijo"
+        onCancel={() => setConfirmSkip(false)}
+        onConfirm={skip}
+      />
     </div>
   )
 }

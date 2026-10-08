@@ -289,7 +289,7 @@ export default async function DashboardPage({ params }: { params: { slug: string
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <p className="text-sm text-gray-500">Ni izstavljenih računov</p>
-                <Link href={`/${params.slug}/invoices/new`} className="inline-block mt-2 text-sm text-[#6D5EF7] hover:underline">
+                <Link href={`/${params.slug}/invoices/new`} className="inline-block mt-2 text-sm text-brand hover:underline">
                   Izstavite prvi račun →
                 </Link>
               </div>
@@ -302,7 +302,7 @@ export default async function DashboardPage({ params }: { params: { slug: string
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${inv.eor ? 'bg-green-400' : inv.status === 'cancelled' ? 'bg-red-400' : 'bg-amber-400'}`} />
                           <div className="min-w-0">
-                            <p className="text-sm font-mono font-medium text-gray-900 group-hover:text-[#6D5EF7] transition-colors">{inv.invoice_number}</p>
+                            <p className="text-sm font-mono font-medium text-gray-900 group-hover:text-brand transition-colors">{inv.invoice_number}</p>
                             <p className="text-xs text-gray-500 truncate">{inv.client_name ?? 'Neznana stranka'}</p>
                           </div>
                         </div>

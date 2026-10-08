@@ -128,7 +128,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
         onClick={() => fileRef.current?.click()}
         className={`
           border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
-          ${isDragging ? 'border-[#6D5EF7] bg-[#6D5EF7]/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}
+          ${isDragging ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}
         `}
       >
         <input

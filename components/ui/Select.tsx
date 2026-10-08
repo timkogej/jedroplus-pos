@@ -1,5 +1,5 @@
 'use client'
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
@@ -8,11 +8,17 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, className = '', ...props }, ref) => (
+  ({ label, error, options, className = '', id, ...props }, ref) => {
+    const autoId = useId()
+    const selectId = id ?? autoId
+    return (
     <div className="flex flex-col gap-1">
-      {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
+      {label && <label htmlFor={selectId} className="text-sm font-medium text-gray-700">{label}</label>}
       <div className="relative">
         <select
+          id={selectId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${selectId}-error` : undefined}
           ref={ref}
           className={`
             w-full px-3.5 py-2.5 pr-10 rounded-lg border bg-white text-sm text-gray-900
@@ -33,9 +39,10 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           </svg>
         </div>
       </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p id={`${selectId}-error`} role="alert" className="text-xs text-red-500">{error}</p>}
     </div>
-  )
+    )
+  }
 )
 Select.displayName = 'Select'
 export default Select

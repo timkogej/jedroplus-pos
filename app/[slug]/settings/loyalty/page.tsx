@@ -70,7 +70,7 @@ export default function LoyaltySettingsPage() {
       <div className="flex flex-col min-h-screen">
         <Header slug={slug} title="Loyalty točke" />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-[#6D5EF7] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     )
@@ -99,7 +99,7 @@ export default function LoyaltySettingsPage() {
               aria-checked={enabled}
               onClick={() => setEnabled((v) => !v)}
               className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
-                enabled ? 'bg-[#6D5EF7]' : 'bg-gray-200'
+                enabled ? 'bg-brand' : 'bg-gray-200'
               }`}
             >
               <span

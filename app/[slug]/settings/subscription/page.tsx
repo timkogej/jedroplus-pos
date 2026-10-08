@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -41,6 +42,7 @@ export default function SubscriptionSettingsPage() {
   const [opening, setOpening] = useState(false)
   const [canceling, setCanceling] = useState(false)
   const [error, setError] = useState('')
+  const [confirmCancel, setConfirmCancel] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -91,7 +93,6 @@ export default function SubscriptionSettingsPage() {
 
   async function cancelSubscription() {
     if (!companyId) return
-    if (!confirm('Ali ste prepričani, da želite preklicati naročnino?')) return
     setCanceling(true)
     setError('')
     try {
@@ -118,7 +119,7 @@ export default function SubscriptionSettingsPage() {
       <div className="flex flex-col min-h-screen">
         <Header slug={slug} title="Naročnina" />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-[#6D5EF7] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     )
@@ -195,7 +196,7 @@ export default function SubscriptionSettingsPage() {
                 </Button>
               )}
               {!isCanceled && (
-                <Button variant="danger" onClick={cancelSubscription} loading={canceling}>
+                <Button variant="danger" onClick={() => setConfirmCancel(true)} loading={canceling}>
                   Prekliči naročnino
                 </Button>
               )}
@@ -213,6 +214,19 @@ export default function SubscriptionSettingsPage() {
           ← Nazaj na nastavitve
         </Link>
       </main>
+      <ConfirmDialog
+        open={confirmCancel}
+        danger
+        title="Preklic naročnine"
+        message="Ali ste prepričani, da želite preklicati naročnino? Dostop ohranite do konca plačanega obdobja."
+        confirmLabel="Prekliči naročnino"
+        cancelLabel="Nazaj"
+        onCancel={() => setConfirmCancel(false)}
+        onConfirm={() => {
+          setConfirmCancel(false)
+          cancelSubscription()
+        }}
+      />
     </div>
   )
 }

@@ -66,7 +66,7 @@ export default function PrintSettingsPage() {
       <div className="flex flex-col min-h-screen">
         <Header slug={slug} title="Tiskanje" />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-[#6D5EF7] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     )
@@ -88,19 +88,19 @@ export default function PrintSettingsPage() {
               onClick={() => setSelected(opt.value)}
               className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
                 selected === opt.value
-                  ? 'border-[#6D5EF7] bg-purple-50'
+                  ? 'border-brand bg-purple-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
               <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                selected === opt.value ? 'border-[#6D5EF7]' : 'border-gray-300'
+                selected === opt.value ? 'border-brand' : 'border-gray-300'
               }`}>
                 {selected === opt.value && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#6D5EF7]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-brand" />
                 )}
               </div>
               <div>
-                <p className={`text-sm font-semibold ${selected === opt.value ? 'text-[#6D5EF7]' : 'text-gray-900'}`}>
+                <p className={`text-sm font-semibold ${selected === opt.value ? 'text-brand' : 'text-gray-900'}`}>
                   {opt.label}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>

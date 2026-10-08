@@ -36,10 +36,6 @@ export async function sendInvoiceEmail(
 
   const to = process.env.RESEND_TEST_TO ?? invoice.client_email
 
-  console.log('[email] ── Sending email ──────────────────────')
-  console.log('[email]   FROM:', FROM)
-  console.log('[email]   TO  :', to, to !== invoice.client_email ? `(overriding ${invoice.client_email})` : '')
-  console.log('[email]   pdfBase64 length:', pdfBase64?.length ?? 0)
 
   try {
     const payload = {
@@ -54,8 +50,6 @@ export async function sendInvoiceEmail(
 
     const { data, error } = await getResend().emails.send(payload)
 
-    console.log('[email]   data :', JSON.stringify(data))
-    console.log('[email]   error:', JSON.stringify(error))
 
     if (error) {
       const msg = (error as { message?: string }).message ?? JSON.stringify(error)
@@ -63,7 +57,6 @@ export async function sendInvoiceEmail(
       return { success: false, error: msg }
     }
 
-    console.log('[email] SUCCESS — Resend email id:', data?.id)
     return { success: true }
   } catch (err: unknown) {
     console.error('[email] EXCEPTION during send:', err)

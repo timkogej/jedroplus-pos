@@ -170,7 +170,7 @@ export default function PaymentsSettingsPage() {
       <div className="flex flex-col min-h-screen">
         <Header slug={slug} title="Spletna plačila" />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-[#6D5EF7] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     )
@@ -271,7 +271,7 @@ export default function PaymentsSettingsPage() {
                     setOnlineDeviceId('')
                     setOnlineSaved(false)
                   }}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6D5EF7]/30"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
                 >
                   <option value="">Privzeto (prvi aktivni)</option>
                   {premises.map((p) => (
@@ -294,7 +294,7 @@ export default function PaymentsSettingsPage() {
                     setOnlineSaved(false)
                   }}
                   disabled={!onlinePremiseId}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6D5EF7]/30 disabled:bg-gray-50 disabled:text-gray-400"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:bg-gray-50 disabled:text-gray-400"
                 >
                   <option value="">Privzeto (prva aktivna)</option>
                   {devicesForPremise.map((d) => (

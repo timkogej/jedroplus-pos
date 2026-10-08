@@ -145,12 +145,12 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-active"
-                    className="absolute left-0 top-2 bottom-2 w-0.5 bg-[#6D5EF7] rounded-r-full"
+                    className="absolute left-0 top-2 bottom-2 w-0.5 bg-brand rounded-r-full"
                     transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
                   />
                 )}
                 <NavIcon>
-                  <span className={isActive ? 'text-[#6D5EF7]' : ''}>
+                  <span className={isActive ? 'text-brand' : ''}>
                     {item.icon}
                   </span>
                 </NavIcon>

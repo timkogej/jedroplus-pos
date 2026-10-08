@@ -94,7 +94,7 @@ function FormatCard({
       onClick={onClick}
       className={`w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 flex items-center justify-between gap-3 ${
         selected
-          ? 'border-[#6D5EF7]/40 bg-[#6D5EF7]/5 ring-1 ring-[#6D5EF7]/20'
+          ? 'border-brand/40 bg-brand/5 ring-1 ring-brand/20'
           : 'border-gray-200 hover:border-gray-300 bg-white'
       }`}
     >
@@ -103,7 +103,7 @@ function FormatCard({
         <p className="text-sm font-mono font-semibold text-gray-900 mt-0.5 truncate">{preview}</p>
       </div>
       <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-        selected ? 'border-[#6D5EF7] bg-[#6D5EF7]' : 'border-gray-300'
+        selected ? 'border-brand bg-brand' : 'border-gray-300'
       }`}>
         {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
       </div>
@@ -227,7 +227,7 @@ export default function InvoiceSettingsPage() {
       <div className="flex flex-col min-h-screen">
         <Header slug={slug} title="Nastavitve računov" />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-[#6D5EF7] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     )
@@ -337,11 +337,11 @@ export default function InvoiceSettingsPage() {
                   onClick={() => setYearReset((v) => !v)}
                   className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border text-sm transition-all duration-150 ${
                     yearReset
-                      ? 'border-[#6D5EF7]/30 bg-[#6D5EF7]/5 text-[#6D5EF7]'
+                      ? 'border-brand/30 bg-brand/5 text-brand'
                       : 'border-gray-200 bg-white text-gray-500'
                   }`}
                 >
-                  <div className={`w-8 h-4.5 rounded-full transition-colors relative flex-shrink-0 ${yearReset ? 'bg-[#6D5EF7]' : 'bg-gray-200'}`}
+                  <div className={`w-8 h-4.5 rounded-full transition-colors relative flex-shrink-0 ${yearReset ? 'bg-brand' : 'bg-gray-200'}`}
                     style={{ height: '18px' }}
                   >
                     <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform ${yearReset ? 'translate-x-4' : 'translate-x-0.5'}`} />

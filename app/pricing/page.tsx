@@ -66,7 +66,7 @@ const FAQ = [
 
 function CheckIcon() {
   return (
-    <svg className="w-4 h-4 flex-shrink-0 text-[#6D5EF7]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-4 h-4 flex-shrink-0 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" />
     </svg>
   )
@@ -227,7 +227,7 @@ function PricingPageInner() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: isPro ? 0.08 : 0 }}
                 className={`relative bg-white rounded-2xl p-6 flex flex-col ${
-                  highlight ? 'border-2 border-[#6D5EF7] shadow-lg shadow-[#6D5EF7]/10' : 'border border-gray-200'
+                  highlight ? 'border-2 border-brand shadow-lg shadow-brand/10' : 'border border-gray-200'
                 }`}
               >
                 {isPro && (

@@ -441,7 +441,7 @@ export default function InvoiceForm({
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Postavke</h3>
           <button
             onClick={addItem}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-900 hover:text-[#6D5EF7] transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-900 hover:text-brand transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -601,7 +601,7 @@ export default function InvoiceForm({
 
       {/* Loyalty redemption */}
       {loyaltyEnabled && loyaltyBalance > 0 && (
-        <div className="bg-white rounded-2xl border border-[#6D5EF7]/30 p-5">
+        <div className="bg-white rounded-2xl border border-brand/30 p-5">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-lg">🎁</span>
             <p className="text-sm font-semibold text-gray-900">
@@ -617,7 +617,7 @@ export default function InvoiceForm({
               step={1}
               value={clampedPoints}
               onChange={(e) => setPointsToRedeem(parseInt(e.target.value, 10) || 0)}
-              className="flex-1 accent-[#6D5EF7]"
+              className="flex-1 accent-brand"
             />
             <input
               type="number"
@@ -630,7 +630,7 @@ export default function InvoiceForm({
             <button
               type="button"
               onClick={() => setPointsToRedeem(maxRedeemablePoints)}
-              className="text-xs font-medium text-[#6D5EF7] hover:underline whitespace-nowrap"
+              className="text-xs font-medium text-brand hover:underline whitespace-nowrap"
             >
               Uporabi vse
             </button>
@@ -783,7 +783,7 @@ export default function InvoiceForm({
           <div className="grid grid-cols-1 gap-2">
             <button
               onClick={() => handlePrintFormat('a4')}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-[#6D5EF7] hover:bg-purple-50 transition-colors text-left"
+              className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-brand hover:bg-purple-50 transition-colors text-left"
             >
               <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -797,7 +797,7 @@ export default function InvoiceForm({
             </button>
             <button
               onClick={() => handlePrintFormat('thermal')}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-[#6D5EF7] hover:bg-purple-50 transition-colors text-left"
+              className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-brand hover:bg-purple-50 transition-colors text-left"
             >
               <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

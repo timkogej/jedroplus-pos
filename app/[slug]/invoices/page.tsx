@@ -70,7 +70,7 @@ export default async function InvoicesPage({ params }: { params: { slug: string 
             </svg>
             <p className="text-sm text-gray-500 font-medium">Ni izstavljenih računov</p>
             <p className="text-xs text-gray-400 mt-1">Izstavite prvi račun iz terminov ali ročno</p>
-            <Link href={`/${params.slug}/invoices/new`} className="text-sm text-[#6D5EF7] hover:underline mt-3 inline-block">
+            <Link href={`/${params.slug}/invoices/new`} className="text-sm text-brand hover:underline mt-3 inline-block">
               Izstavi račun →
             </Link>
           </div>
@@ -120,7 +120,7 @@ export default async function InvoicesPage({ params }: { params: { slug: string 
                       return (
                         <tr key={inv.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${isStornoed ? 'opacity-50' : ''}`}>
                           <td className="px-4 py-3">
-                            <Link href={`/${params.slug}/invoices/${inv.id}`} className={`font-mono font-medium hover:text-[#6D5EF7] hover:underline transition-colors ${isStornoed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                            <Link href={`/${params.slug}/invoices/${inv.id}`} className={`font-mono font-medium hover:text-brand hover:underline transition-colors ${isStornoed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
                               {inv.invoice_number}
                             </Link>
                           </td>

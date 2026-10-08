@@ -80,12 +80,6 @@ export default async function NewInvoicePage({
     const service3Id = termin?.['ID storitve 3'] || searchParams.service3Id
     const appointmentCurrency = termin?.['Valuta'] || currency
 
-    console.log('[Invoice] Fetching appointment', searchParams.appointmentId, {
-      service1Id,
-      service2Id,
-      service3Id,
-      strankaId,
-    })
 
     // Resolve client and all three services in parallel
     const [strankaResult, svc1Result, svc2Result, svc3Result] = await Promise.all([
@@ -107,12 +101,6 @@ export default async function NewInvoicePage({
         : Promise.resolve({ data: null }),
     ])
 
-    console.log('[Invoice] Lookup results:', {
-      svc1: svc1Result.data,
-      svc2: svc2Result.data,
-      svc3: svc3Result.data,
-      stranka: strankaResult.data,
-    })
 
     if (strankaResult.data) {
       const stranka = strankaResult.data

@@ -11,6 +11,8 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        // Brand violet — use `text-brand`, `bg-brand/10`, `ring-brand/30`, ... instead of hex literals.
+        brand: "#6D5EF7",
       },
     },
   },

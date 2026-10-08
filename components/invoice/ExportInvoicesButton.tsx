@@ -62,7 +62,7 @@ export default function ExportInvoicesButton({ companyId }: { companyId: string 
     }
   }
 
-  const inputCls = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6D5EF7]/30 focus:border-[#6D5EF7]'
+  const inputCls = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand'
 
   return (
     <>

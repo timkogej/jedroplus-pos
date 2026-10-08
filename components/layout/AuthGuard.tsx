@@ -81,7 +81,7 @@ export default function AuthGuard({ slug, children }: AuthGuardProps) {
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="w-7 h-7 border-2 border-[#6D5EF7] border-t-transparent rounded-full animate-spin" />
+        <div className="w-7 h-7 border-2 border-brand border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
