@@ -10,6 +10,7 @@ import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
+import { ljDateString, ljMidnightUtc } from '@/lib/time'
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: 'green' | 'red' }) {
   const subColor = accent === 'green' ? 'text-green-600' : accent === 'red' ? 'text-red-600' : 'text-gray-400'
@@ -59,11 +60,17 @@ export default async function DashboardPage({ params }: { params: { slug: string
   // until then invoices are issued in FURS test mode.
   const showFursBanner = (activeCertCount ?? 0) === 0
 
-  const now = new Date()
-  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const thirtyStart = new Date(now); thirtyStart.setDate(now.getDate() - 29); thirtyStart.setHours(0, 0, 0, 0)
+  // All day/month boundaries are Slovenian local time (the server runs in UTC).
+  const todayStr = ljDateString()
+  const [ty, tm, td] = todayStr.split('-').map(Number)
+  const ymd = (y: number, m: number, d: number) => {
+    const dt = new Date(Date.UTC(y, m - 1, d))
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
+  }
+  const todayStart = ljMidnightUtc(todayStr)
+  const monthStart = ljMidnightUtc(ymd(ty, tm, 1))
+  const prevMonthStart = ljMidnightUtc(ymd(ty, tm - 1, 1))
+  const thirtyStart = ljMidnightUtc(ymd(ty, tm, td - 29))
   // Fetch from the earliest boundary we need so today/month/prev-month/30-day are all computed in JS.
   const statsFrom = prevMonthStart < thirtyStart ? prevMonthStart : thirtyStart
 
@@ -142,18 +149,17 @@ export default async function DashboardPage({ params }: { params: { slug: string
 
   // Last 30 days revenue chart, one bucket per day
   const buckets = new Map<string, { total: number; count: number }>()
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(thirtyStart); d.setDate(thirtyStart.getDate() + i)
-    buckets.set(d.toISOString().slice(0, 10), { total: 0, count: 0 })
+  for (let i = 29; i >= 0; i--) {
+    buckets.set(ymd(ty, tm, td - i), { total: 0, count: 0 })
   }
   rows.filter((r) => isRevenue(r.status) && inRange(r, thirtyStart)).forEach((r) => {
-    const key = new Date(r.invoice_date).toISOString().slice(0, 10)
+    const key = ljDateString(new Date(r.invoice_date))
     const b = buckets.get(key)
     if (b) { b.total += r.total; b.count += 1 }
   })
   const chartData: RevenuePoint[] = Array.from(buckets.entries()).map(([date, v]) => ({
     date,
-    label: `${new Date(date).getDate()}.${new Date(date).getMonth() + 1}.`,
+    label: `${Number(date.slice(8, 10))}.${Number(date.slice(5, 7))}.`,
     total: Number(v.total.toFixed(2)),
     count: v.count,
   }))

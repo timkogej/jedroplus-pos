@@ -27,6 +27,11 @@ function softwareSupplierTaxNumber(): string {
 
 const REQUEST_TIMEOUT_MS = 30000
 
+/** Verbose protocol logging (signed XML, headers, raw bodies) — off by default. */
+const debugLog = (...args: unknown[]) => {
+  if (process.env.FURS_DEBUG === 'true') console.log(...args)
+}
+
 function fursUrl(environment: FursEnvironment): string {
   const url =
     environment === 'production' ? process.env.FURS_PRODUCTION_URL : process.env.FURS_TEST_URL
@@ -107,7 +112,8 @@ export async function getFursEnvironment(companyId: string): Promise<FursEnviron
  */
 export async function confirmInvoiceWithFurs(
   request: FursInvoiceRequest,
-  companyId: string
+  companyId: string,
+  opts: { existingZoi?: string | null } = {}
 ): Promise<FursResponse> {
   const cert = await getActiveCertificate(companyId)
   if (!cert) throw new FursError('NO_CERTIFICATE', 'Certifikat ni naložen')
@@ -121,7 +127,9 @@ export async function confirmInvoiceWithFurs(
   const taxNumber = request.taxNumber || cert.taxNumber
   const fullRequest: FursInvoiceRequest = { ...request, taxNumber }
 
-  const zoi = calculateZoi(buildZoiInput(fullRequest), cert.privateKeyPem)
+  // A resubmission (retry cron) must carry the ZOI that was already printed on
+  // the receipt, never a freshly computed one.
+  const zoi = opts.existingZoi || calculateZoi(buildZoiInput(fullRequest), cert.privateKeyPem)
 
   try {
     const { xml, messageId } = buildInvoiceRequestXml(fullRequest, zoi)
@@ -131,9 +139,9 @@ export async function confirmInvoiceWithFurs(
     const endpoint = fursUrl(environment)
 
     console.log(`[furs] → ${environment} invoice=${fullRequest.invoiceNumber} msg=${messageId}`)
-    console.log(`[furs] InvoiceRequest XML: ${signedXml}`)
-    const responseXml = await postXmlToFurs(endpoint, signedXml, cert, '/invoices')
-    console.log(`[furs] ← invoice=${fullRequest.invoiceNumber} response=${responseXml.slice(0, 2000)}`)
+    debugLog(`[furs] InvoiceRequest XML: ${signedXml}`)
+    const responseXml = await postXmlToFurs(endpoint, signedXml, cert, '/invoices', environment)
+    debugLog(`[furs] ← invoice=${fullRequest.invoiceNumber} response=${responseXml.slice(0, 2000)}`)
 
     const eor = parseFursResponse(responseXml)
     return { eor, zoi, confirmedAt: new Date().toISOString() }
@@ -179,9 +187,9 @@ export async function registerBusinessPremise(
   const endpoint = fursUrl(environment)
 
   console.log(`[furs] → register premise=${premiseId} env=${environment}`)
-  console.log(`[furs] BusinessPremiseRequest XML: ${signedXml}`)
-  const responseXml = await postXmlToFurs(endpoint, signedXml, cert, '/invoices/register')
-  console.log(`[furs] ← register premise=${premiseId} response=${responseXml.slice(0, 2000)}`)
+  debugLog(`[furs] BusinessPremiseRequest XML: ${signedXml}`)
+  const responseXml = await postXmlToFurs(endpoint, signedXml, cert, '/invoices/register', environment)
+  debugLog(`[furs] ← register premise=${premiseId} response=${responseXml.slice(0, 2000)}`)
 
   const errorCode = responseXml.match(/<[^>]*ErrorCode[^>]*>([^<]+)</)?.[1]?.trim()
   if (errorCode) {
@@ -197,7 +205,7 @@ export async function checkFursEcho(environment: FursEnvironment, cert: Certific
   try {
     const endpoint = fursUrl(environment)
     console.log(`[furs] echo test → env=${environment} url=${endpoint}`)
-    const responseXml = await postXmlToFurs(endpoint, buildEchoRequestXml(), cert, '/echo')
+    const responseXml = await postXmlToFurs(endpoint, buildEchoRequestXml(), cert, '/echo', environment)
     const ok = /<[^>]*EchoResponse[^>]*>\s*test\s*</.test(responseXml)
     if (!ok) console.error(`[furs] echo: nepričakovan odgovor (ni EchoResponse=test): ${responseXml.slice(0, 1000)}`)
     return ok
@@ -214,7 +222,8 @@ function postXmlToFurs(
   url: string,
   xmlBody: string,
   cert: CertificateInfo,
-  soapAction: FursSoapAction
+  soapAction: FursSoapAction,
+  environment: FursEnvironment
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url)
@@ -229,9 +238,17 @@ function postXmlToFurs(
       key: cert.privateKeyPem,
       // Intermediates from the .p12 (sigov-ca / si-trust-root) so the server
       // chain can be verified where possible.
-      ca: cert.caPems.length > 0 ? cert.caPems : undefined,
+      ca: (() => {
+        const extra = process.env.FURS_CA_PEM ? [process.env.FURS_CA_PEM] : []
+        const all = [...cert.caPems, ...extra]
+        return all.length > 0 ? all : undefined
+      })(),
       minVersion: 'TLSv1.2',
-      rejectUnauthorized: false, // FURS test env uses its own CA
+      // The FURS TEST environment uses its own CA, so it stays lenient there.
+      // PRODUCTION verifies the server certificate. If the SI-TRUST chain isn't
+      // resolvable on the host, add it via FURS_CA_PEM rather than disabling
+      // verification; FURS_TLS_INSECURE=true is a temporary escape hatch only.
+      rejectUnauthorized: environment === 'production' && process.env.FURS_TLS_INSECURE !== 'true',
     })
 
     console.log(
@@ -258,12 +275,12 @@ function postXmlToFurs(
         `[furs] TLS ok: protocol=${socket.getProtocol?.()} cipher=${socket.getCipher?.()?.name} ` +
         `serverCertAuthorized=${socket.authorized} (${socket.authorizationError ?? 'no error'})`
       )
-      console.log(`[furs] HTTP ${res.statusCode} headers=${JSON.stringify(res.headers)}`)
+      debugLog(`[furs] HTTP ${res.statusCode} headers=${JSON.stringify(res.headers)}`)
 
       let data = ''
       res.on('data', (chunk) => { data += chunk })
       res.on('end', () => {
-        console.log(`[furs] body (${data.length}b): ${data.slice(0, 2000)}`)
+        debugLog(`[furs] body (${data.length}b): ${data.slice(0, 2000)}`)
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           resolve(data)
         } else {

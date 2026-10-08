@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { ljDateString, ljDayBounds } from '@/lib/time'
 
 /**
  * Aggregated daily totals for a Z-report (dnevni zaključek blagajne).
@@ -22,22 +23,17 @@ export interface ZReportTotals {
 
 /**
  * Start (inclusive) and end (exclusive) ISO timestamps spanning a single
- * calendar day in the server's local timezone, matching how the dashboard
+ * calendar day in Slovenian local time (Europe/Ljubljana), matching how the dashboard
  * buckets invoices by day.
  */
 export function dayBounds(reportDate: string): { start: string; end: string } {
-  const start = new Date(`${reportDate}T00:00:00`)
-  const end = new Date(start)
-  end.setDate(end.getDate() + 1)
+  const { start, end } = ljDayBounds(reportDate)
   return { start: start.toISOString(), end: end.toISOString() }
 }
 
-/** Today's date as YYYY-MM-DD in the server's local timezone. */
+/** Today's date as YYYY-MM-DD in Slovenian local time. */
 export function localDateString(d: Date = new Date()): string {
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return ljDateString(d)
 }
 
 /** Human label for a stored report: Z-YYYY-NNNN (e.g. Z-2026-0001). */

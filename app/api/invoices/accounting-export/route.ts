@@ -21,16 +21,16 @@ const STATUS_LABELS: Record<string, string> = {
 
 type ExportInvoice = PosInvoice & { pos_invoice_items?: PosInvoiceItem[] }
 
+import { ljParts } from '@/lib/time'
+
 function fmtDate(iso: string): string {
-  const d = new Date(iso)
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  return `${dd}.${mm}.${d.getFullYear()}`
+  const p = ljParts(new Date(iso))
+  return `${String(p.day).padStart(2, '0')}.${String(p.month).padStart(2, '0')}.${p.year}`
 }
 
 function fmtTime(iso: string): string {
-  const d = new Date(iso)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const p = ljParts(new Date(iso))
+  return `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`
 }
 
 function itemsByRate(items: PosInvoiceItem[], rate: number): PosInvoiceItem[] {
@@ -200,7 +200,8 @@ export async function POST(req: NextRequest) {
 
   for (const inv of invoices) {
     const d = new Date(inv.invoice_date)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const lp = ljParts(d)
+    const key = `${lp.year}-${String(lp.month).padStart(2, '0')}`
     if (!monthMap.has(key)) {
       monthMap.set(key, {
         label: d.toLocaleDateString('sl-SI', { year: 'numeric', month: 'long' }),

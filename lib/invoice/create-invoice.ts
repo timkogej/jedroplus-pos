@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { confirmInvoiceWithFurs } from '@/lib/furs/api'
 import { buildFursTaxes } from '@/lib/furs/taxes'
 import { formatDateForZoi } from '@/lib/furs/zoi'
+import { ljDateString } from '@/lib/time'
 import { FursError, type FursInvoiceRequest } from '@/lib/furs/types'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
@@ -128,21 +129,21 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     yearFormat:   (settings?.invoice_year_format   ?? 'full') as 'full' | 'short',
   }
 
-  const { invoiceNumber } = await generateInvoiceNumber(companyId, formatConfig, premise.premise_id, device.device_id)
-  const issueDate = new Date()
-
   // A day that's already been closed with a Z-report is locked — no new invoices
-  // may be added for it (ZDavPR daily-closing integrity).
-  const issueDateStr = `${issueDate.getFullYear()}-${String(issueDate.getMonth() + 1).padStart(2, '0')}-${String(issueDate.getDate()).padStart(2, '0')}`
+  // may be added for it (ZDavPR daily-closing integrity). Checked BEFORE a
+  // number is drawn so a rejected attempt doesn't burn a sequence number.
+  const issueDate = new Date()
   const { data: closedDay } = await supabase
     .from('pos_z_reports')
     .select('id')
     .eq('company_id', companyId)
-    .eq('report_date', issueDateStr)
+    .eq('report_date', ljDateString(issueDate))
     .maybeSingle()
   if (closedDay) {
     throw new InvoiceValidationError('Blagajna za ta dan je že zaključena (Z-poročilo). Računov ni mogoče dodajati.')
   }
+
+  const { invoiceNumber, counter: invoiceCounter } = await generateInvoiceNumber(companyId, formatConfig, premise.premise_id, device.device_id)
 
   const { data: certRow } = await supabase
     .from('pos_certificates')
@@ -170,6 +171,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       taxNumber: certRow.tax_number,
       issueDateTime: formatDateForZoi(issueDate),
       invoiceNumber,
+      invoiceCounter,
       businessPremiseId: premise.premise_id,
       electronicDeviceId: device.device_id,
       invoiceAmount: total.toFixed(2),
@@ -206,6 +208,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       premise_id: premiseId,
       device_id: deviceId,
       invoice_number: invoiceNumber,
+      invoice_counter: invoiceCounter,
       invoice_date: issueDate.toISOString(),
       client_name: buyer.name || null,
       client_email: buyer.email || null,
@@ -238,17 +241,24 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     throw new Error(invoiceError.message)
   }
 
-  await supabase.from('pos_invoice_items').insert(
-    items.map((item) => ({
-      invoice_id: invoice.id,
-      description: item.description,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      vat_rate: item.vat_rate,
-      vat_amount: (item.quantity * item.unit_price) * (item.vat_rate / (100 + item.vat_rate)),
-      total: item.quantity * item.unit_price,
-    }))
-  )
+  // The invoice is already fiscalized (and immutable), so a failed items insert
+  // can't be rolled back — retry once, then shout loudly so it gets repaired.
+  const itemRows = items.map((item) => ({
+    invoice_id: invoice.id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    vat_rate: item.vat_rate,
+    vat_amount: (item.quantity * item.unit_price) * (item.vat_rate / (100 + item.vat_rate)),
+    total: item.quantity * item.unit_price,
+  }))
+  let { error: itemsError } = await supabase.from('pos_invoice_items').insert(itemRows)
+  if (itemsError) {
+    ;({ error: itemsError } = await supabase.from('pos_invoice_items').insert(itemRows))
+  }
+  if (itemsError) {
+    console.error(`[createInvoice] CRITICAL: items insert failed for invoice ${invoiceNumber} (${invoice.id}):`, itemsError.message)
+  }
 
   if (appointmentId) {
     const { error: terminiError } = await supabase

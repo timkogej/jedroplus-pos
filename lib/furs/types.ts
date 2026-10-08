@@ -10,6 +10,7 @@ export interface FursInvoiceRequest {
   taxNumber: string          // davčna številka podjetja (8 digits)
   issueDateTime: string      // format: "dd.MM.yyyy HH:mm:ss"
   invoiceNumber: string      // full formatted number, e.g. "R-2026-PS1-EN1-00042"
+  invoiceCounter?: number | string // bare sequential counter (42); preferred over parsing invoiceNumber
   businessPremiseId: string  // oznaka poslovnega prostora (PS1)
   electronicDeviceId: string // oznaka elektronske naprave (EN1)
   invoiceAmount: string      // total amount, 2 decimals, e.g. "25.00"
@@ -20,6 +21,7 @@ export interface FursInvoiceRequest {
   subsequentSubmit?: boolean // true if offline/delayed submission
   referenceInvoice?: {       // for storno invoices
     referenceInvoiceNumber: string
+    referenceInvoiceCounter?: number | string
     referenceBusinessPremiseId: string
     referenceElectronicDeviceId: string
     referenceInvoiceIssueDateTime: string // "dd.MM.yyyy HH:mm:ss"

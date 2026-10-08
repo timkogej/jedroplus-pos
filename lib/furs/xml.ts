@@ -1,6 +1,7 @@
 import { create } from 'xmlbuilder2'
 import { randomUUID } from 'crypto'
 import type { FursInvoiceRequest } from './types'
+import { ljIsoLocal } from '@/lib/time'
 
 // Per FURS technical documentation v3.1 §3.2.3 (and FURS's own responses):
 // the fu namespace is exactly "http://www.fu.gov.si/".
@@ -49,7 +50,7 @@ export function buildInvoiceRequestXml(req: FursInvoiceRequest, zoi: string): Bu
     .ele('fu:InvoiceIdentifier')
       .ele('fu:BusinessPremiseID').txt(req.businessPremiseId).up()
       .ele('fu:ElectronicDeviceID').txt(req.electronicDeviceId).up()
-      .ele('fu:InvoiceNumber').txt(extractInvoiceCounter(req.invoiceNumber)).up()
+      .ele('fu:InvoiceNumber').txt(String(req.invoiceCounter ?? extractInvoiceCounter(req.invoiceNumber))).up()
     .up()
     .ele('fu:InvoiceAmount').txt(req.invoiceAmount).up()
     .ele('fu:PaymentAmount').txt(req.paymentAmount).up()
@@ -87,7 +88,7 @@ export function buildInvoiceRequestXml(req: FursInvoiceRequest, zoi: string): Bu
           .ele('fu:BusinessPremiseID').txt(req.referenceInvoice.referenceBusinessPremiseId).up()
           .ele('fu:ElectronicDeviceID').txt(req.referenceInvoice.referenceElectronicDeviceId).up()
           .ele('fu:InvoiceNumber')
-            .txt(extractInvoiceCounter(req.referenceInvoice.referenceInvoiceNumber))
+            .txt(String(req.referenceInvoice.referenceInvoiceCounter ?? extractInvoiceCounter(req.referenceInvoice.referenceInvoiceNumber)))
           .up()
         .up()
         .ele('fu:ReferenceInvoiceIssueDateTime')
@@ -207,8 +208,7 @@ export function zoiDateTimeToIso(zoiDateTime: string): string {
   return `${m[3]}-${m[2]}-${m[1]}T${m[4]}`
 }
 
-/** ISO 8601 without timezone suffix, local time. */
+/** ISO 8601 without timezone suffix, Slovenian local time. */
 export function isoLocalDateTime(date: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
+  return ljIsoLocal(date)
 }
