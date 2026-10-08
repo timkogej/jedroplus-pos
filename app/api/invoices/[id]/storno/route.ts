@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { pdfStorageKey } from '@/lib/invoice/storage'
 import { randomBytes, randomUUID } from 'crypto'
 import { createServiceClient } from '@/lib/supabase'
 import { confirmInvoiceWithFurs } from '@/lib/furs/api'
@@ -258,7 +259,7 @@ export async function POST(
         deviceCode: device.device_id,
       })
 
-      const storageKey = `${companyId}/${stornoNumber}.pdf`
+      const storageKey = pdfStorageKey(companyId, stornoNumber)
       const { error: uploadErr } = await supabase.storage
         .from('invoices')
         .upload(storageKey, pdfBuffer, { contentType: 'application/pdf', upsert: true })

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { pdfStorageKey } from '@/lib/invoice/storage'
 import { createServiceClient } from '@/lib/supabase'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import { rateLimit } from '@/lib/rate-limit'
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
         currency: ctx.currency,
       })
 
-      const storageKey = `${companyId}/${reportLabel}.pdf`
+      const storageKey = pdfStorageKey(companyId, reportLabel)
       const { error: uploadErr } = await supabase.storage
         .from('z-reports')
         .upload(storageKey, pdfBuffer, { contentType: 'application/pdf', upsert: true })

@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import Link from 'next/link'
@@ -32,13 +33,7 @@ export const revalidate = 0
 export default async function DashboardPage({ params }: { params: { slug: string } }) {
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name, company_id')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   // --- Onboarding gate ----------------------------------------------------
   // New companies (just subscribed) have no company data or premises yet. Send

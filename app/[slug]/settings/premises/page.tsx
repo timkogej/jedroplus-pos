@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import PremisesForm from '@/components/settings/PremisesForm'
@@ -10,13 +11,7 @@ export const revalidate = 0
 export default async function PremisesPage({ params }: { params: { slug: string } }) {
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   const [{ data: premises }, { data: devices }] = await Promise.all([
     supabase.from('pos_premises').select('*').eq('company_id', company.id).order('created_at'),

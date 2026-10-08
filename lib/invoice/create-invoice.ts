@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'crypto'
+import { pdfStorageKey } from '@/lib/invoice/storage'
 import { createServiceClient } from '@/lib/supabase'
 import { confirmInvoiceWithFurs } from '@/lib/furs/api'
 import { buildFursTaxes } from '@/lib/furs/taxes'
@@ -348,7 +349,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       loyaltyEarned: loyaltyDisplay.earned ?? undefined,
     })
 
-    const storageKey = `${companyId}/${invoiceNumber}.pdf`
+    const storageKey = pdfStorageKey(companyId, invoiceNumber)
     const { error: uploadErr } = await supabase.storage
       .from('invoices')
       .upload(storageKey, pdfBuffer, { contentType: 'application/pdf', upsert: true })

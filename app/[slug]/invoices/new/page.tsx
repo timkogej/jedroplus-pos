@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Header from '@/components/layout/Header'
 import InvoiceForm from '@/components/invoice/InvoiceForm'
 import type { PosPremise, PosDevice, PosSettings, PosCompanyData, InvoiceItemForm } from '@/types'
@@ -40,13 +41,7 @@ export default async function NewInvoicePage({
 }) {
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   const [{ data: settings }, { data: premises }, { data: devices }, { data: companyData }] = await Promise.all([
     supabase.from('pos_settings').select('*').eq('company_id', company.id).single(),
