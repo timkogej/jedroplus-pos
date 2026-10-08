@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const supabase = createServiceClient()
     const { data: premise } = await supabase
       .from('pos_premises')
-      .select('id, premise_id, premise_type, address, house_number, house_number_additional, city, postal_code')
+      .select('id, premise_id, premise_type, address, house_number, house_number_additional, city, postal_code, cadastral_number, building_number, building_section_number')
       .eq('id', premiseId)
       .eq('company_id', companyId)
       .single()
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     }
 
     let address: import('@/lib/furs/xml').FursPremiseAddress | undefined
+    let cadastralData: import('@/lib/furs/xml').FursCadastralData | undefined
     if (premise.premise_type !== 'movable') {
       let street = premise.address ?? ''
       let houseNumber = premise.house_number ?? ''
@@ -60,10 +61,18 @@ export async function POST(req: NextRequest) {
         city: premise.city,
         postalCode: premise.postal_code,
       }
+
+      if (premise.cadastral_number && premise.building_number && premise.building_section_number) {
+        cadastralData = {
+          cadastralNumber: premise.cadastral_number,
+          buildingNumber: premise.building_number,
+          buildingSectionNumber: premise.building_section_number,
+        }
+      }
     }
 
     try {
-      await registerBusinessPremise(companyId, premise.premise_id, address)
+      await registerBusinessPremise(companyId, premise.premise_id, address, cadastralData)
     } catch (err) {
       const message = err instanceof FursError ? err.message : 'Napaka pri registraciji pri FURS'
       return NextResponse.json({ error: message }, { status: 502 })

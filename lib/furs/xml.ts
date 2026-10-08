@@ -116,10 +116,17 @@ export interface FursPremiseAddress {
   postalCode: string
 }
 
+export interface FursCadastralData {
+  cadastralNumber: string // katastrska občina
+  buildingNumber: string // številka stavbe
+  buildingSectionNumber: string // del stavbe
+}
+
 export interface BusinessPremiseRequest {
   taxNumber: string
   businessPremiseId: string
   address?: FursPremiseAddress
+  cadastralData?: FursCadastralData
   softwareSupplierTaxNumber: string
   validityDate: string // "YYYY-MM-DD"
 }
@@ -154,16 +161,14 @@ export function buildBusinessPremiseRequestXml(req: BusinessPremiseRequest): Bui
 
   const bpIdentifier = premise.ele('fu:BPIdentifier')
   if (req.address) {
+    // XSD requires positive integers for PropertyID fields (0/missing fails S001).
+    const cadastralData = req.cadastralData ?? { cadastralNumber: '1', buildingNumber: '1', buildingSectionNumber: '1' }
     const address = bpIdentifier
       .ele('fu:RealEstateBP')
-        // TODO: replace placeholder values with the premise's real cadastral
-        // data (katastrska občina / št. stavbe / del stavbe from the Slovenian
-        // real estate registry) before production registration. The XSD
-        // requires positive integers, so 0 fails schema validation (S001).
         .ele('fu:PropertyID')
-          .ele('fu:CadastralNumber').txt('1').up()
-          .ele('fu:BuildingNumber').txt('1').up()
-          .ele('fu:BuildingSectionNumber').txt('1').up()
+          .ele('fu:CadastralNumber').txt(cadastralData.cadastralNumber).up()
+          .ele('fu:BuildingNumber').txt(cadastralData.buildingNumber).up()
+          .ele('fu:BuildingSectionNumber').txt(cadastralData.buildingSectionNumber).up()
         .up()
         .ele('fu:Address')
     address.ele('fu:Street').txt(req.address.street).up()

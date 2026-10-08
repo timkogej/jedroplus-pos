@@ -65,6 +65,9 @@ export interface PosPremise {
   house_number_additional: string | null
   city: string | null
   postal_code: string | null
+  cadastral_number: string | null
+  building_number: string | null
+  building_section_number: string | null
   is_active: boolean
   furs_registered: boolean
   furs_registered_at: string | null

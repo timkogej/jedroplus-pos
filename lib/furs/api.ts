@@ -2,7 +2,7 @@ import https from 'https'
 import { createServiceClient } from '@/lib/supabase'
 import { loadCertificate, validateCertificate, type CertificateInfo } from './certificate'
 import { calculateZoi, buildZoiInput } from './zoi'
-import { buildInvoiceRequestXml, buildBusinessPremiseRequestXml, buildEchoRequestXml, type FursPremiseAddress } from './xml'
+import { buildInvoiceRequestXml, buildBusinessPremiseRequestXml, buildEchoRequestXml, type FursPremiseAddress, type FursCadastralData } from './xml'
 import { signXmlWithPems } from './sign'
 import { FursError, type FursEnvironment, type FursInvoiceRequest, type FursResponse } from './types'
 
@@ -158,7 +158,8 @@ export async function confirmInvoiceWithFurs(
 export async function registerBusinessPremise(
   companyId: string,
   premiseId: string,
-  address?: FursPremiseAddress
+  address?: FursPremiseAddress,
+  cadastralData?: FursCadastralData
 ): Promise<void> {
   const cert = await getActiveCertificate(companyId)
   if (!cert) throw new FursError('NO_CERTIFICATE', 'Certifikat ni naložen')
@@ -168,6 +169,7 @@ export async function registerBusinessPremise(
     taxNumber: cert.taxNumber,
     businessPremiseId: premiseId,
     address,
+    cadastralData,
     softwareSupplierTaxNumber: softwareSupplierTaxNumber(),
     validityDate: new Date().toISOString().slice(0, 10),
   })
