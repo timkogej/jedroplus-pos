@@ -48,6 +48,10 @@ export interface CreateInvoiceInput {
   // existed — it gets linked to the new invoice so PDF/email can show it.
   clientId?: string | null
   loyaltyRedeemRecordId?: string | null
+  // Points redeemed on THIS invoice. Booked in the ledger only after the invoice
+  // exists, so a failed issue (FURS, closed day, ...) never burns the points.
+  loyaltyPoints?: number
+  loyaltyDiscount?: number
 }
 
 /** Validation/business error that maps to an HTTP 400 in the API route. */
@@ -101,6 +105,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     stripePaymentIntentId,
     clientId,
     loyaltyRedeemRecordId,
+    loyaltyPoints = 0,
   } = input
 
   const supabase = createServiceClient()
@@ -278,6 +283,22 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
   // Loyalty: link any pre-locked redemption to this invoice, then award earned
   // points. Non-blocking — never let loyalty bookkeeping fail invoice issuance.
   try {
+    if (loyaltyPoints > 0 && buyer.email) {
+      // The invoice is already fiscalized and the discount granted, so the
+      // ledger must record it even if a parallel redemption made the balance
+      // short (p_force) — worst case the balance floors at 0.
+      const { error: redeemErr } = await supabase.rpc('loyalty_redeem', {
+        p_company: companyId,
+        p_email: buyer.email,
+        p_points: loyaltyPoints,
+        p_invoice: invoice.id,
+        p_description: `Unovceno pri racunu ${invoiceNumber}`,
+        p_force: true,
+      })
+      if (redeemErr) {
+        console.error(`[createInvoice] CRITICAL: redeeming ${loyaltyPoints} points for ${invoiceNumber} failed:`, redeemErr.message)
+      }
+    }
     if (loyaltyRedeemRecordId) {
       await supabase
         .from('pos_loyalty_points')

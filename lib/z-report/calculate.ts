@@ -106,10 +106,15 @@ export async function computeZReportTotals(
   for (const r of revenueRows) {
     const items = r.pos_invoice_items ?? []
     if (items.length) {
+      // Item rows hold pre-discount gross prices. Scale them to what the
+      // invoice actually charged (manual discount / redeemed points), otherwise
+      // the VAT breakdown overstates revenue and VAT on discounted invoices.
+      const itemsGross = items.reduce((sum, it) => sum + (it.total ?? 0), 0)
+      const scale = itemsGross !== 0 && r.total != null ? r.total / itemsGross : 1
       for (const it of items) {
-        const itemTotal = it.total ?? 0
+        const itemTotal = (it.total ?? 0) * scale
         const rate = Number(it.vat_rate ?? 0)
-        const vat = it.vat_amount ?? (rate > 0 ? (itemTotal * rate) / (100 + rate) : 0)
+        const vat = rate > 0 ? (itemTotal * rate) / (100 + rate) : 0
         addToBucket(totals, rate, itemTotal - vat, vat)
       }
     } else {

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createInvoice, InvoiceValidationError } from '@/lib/invoice/create-invoice'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import { rateLimit } from '@/lib/rate-limit'
+import { computeInvoiceTotals } from '@/lib/invoice/totals'
+import { createServiceClient } from '@/lib/supabase'
+import { getLoyaltySettings } from '@/lib/loyalty/award'
+import { getPointsBalance } from '@/lib/loyalty/balance'
 import {
   ValidationError,
   assertUuid,
@@ -38,6 +42,7 @@ export async function POST(req: NextRequest) {
       notes,
       currency = 'EUR',
       loyaltyRedeemRecordId,
+      loyaltyPoints,
     } = body
 
     // --- Authentication + company ownership --------------------------------
@@ -54,11 +59,33 @@ export async function POST(req: NextRequest) {
     assertUuid(deviceId, 'napravo')
     assertPaymentMethod(paymentMethod)
     assertInvoiceItems(items)
-    assertPositiveAmount(total, 'znesek')
-    assertNonNegativeAmount(subtotal, 'znesek')
-    assertNonNegativeAmount(vatAmount, 'DDV')
     if (clientEmail && !isValidEmail(clientEmail)) {
       throw new ValidationError('Neveljaven e-poštni naslov')
+    }
+    if (discountValue != null) assertNonNegativeAmount(discountValue, 'popust')
+
+    // --- Amounts are computed HERE; the browser's numbers are only checked ---
+    const points = Math.floor(Number(loyaltyPoints ?? 0))
+    if (points < 0 || !Number.isFinite(points)) throw new ValidationError('Neveljavno število točk')
+
+    let loyaltyDiscount = 0
+    if (points > 0) {
+      if (!clientEmail) throw new ValidationError('Za unovčenje točk je potreben e-poštni naslov stranke')
+      const supabase = createServiceClient()
+      const loyalty = await getLoyaltySettings(supabase, companyId)
+      if (!loyalty.loyalty_enabled) throw new ValidationError('Loyalty program ni omogočen')
+      const balance = await getPointsBalance(companyId, clientEmail, supabase)
+      if (points > balance) throw new ValidationError(`Stranka nima dovolj točk (na voljo: ${balance})`)
+      loyaltyDiscount = points * loyalty.loyalty_redeem_value
+    }
+
+    const totals = computeInvoiceTotals(items, discountValue ?? 0, loyaltyDiscount)
+    if (points > 0 && totals.loyaltyDiscount + 0.005 < loyaltyDiscount) {
+      throw new ValidationError('Vrednost točk presega znesek računa')
+    }
+    assertPositiveAmount(totals.total, 'znesek')
+    if (typeof total === 'number' && Math.abs(total - totals.total) > 0.01) {
+      throw new ValidationError('Znesek računa se ne ujema z izračunom strežnika. Osvežite stran in poskusite znova.')
     }
 
     const result = await createInvoice({
@@ -68,12 +95,12 @@ export async function POST(req: NextRequest) {
       deviceId,
       paymentMethod,
       items,
-      subtotal,
-      vatRate,
-      vatAmount,
-      total,
+      subtotal: totals.subtotal,
+      vatRate: totals.vatRate,
+      vatAmount: totals.vatAmount,
+      total: totals.total,
       discountType,
-      discountAmount: discountValue,
+      discountAmount: totals.discount,
       buyer: {
         name: clientName,
         email: clientEmail,
@@ -86,6 +113,8 @@ export async function POST(req: NextRequest) {
       notes,
       currency,
       loyaltyRedeemRecordId: loyaltyRedeemRecordId ?? null,
+      loyaltyPoints: points,
+      loyaltyDiscount: totals.loyaltyDiscount,
     })
 
     return NextResponse.json({
@@ -95,6 +124,10 @@ export async function POST(req: NextRequest) {
       eor: result.eor,
       isDemoMode: result.isDemoMode,
       pdfUrl: result.pdfUrl,
+      total: totals.total,
+      subtotal: totals.subtotal,
+      vatAmount: totals.vatAmount,
+      vatRate: totals.vatRate,
     })
   } catch (err: unknown) {
     if (err instanceof InvoiceValidationError || err instanceof ValidationError) {

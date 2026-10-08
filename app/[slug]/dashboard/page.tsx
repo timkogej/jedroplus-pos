@@ -8,6 +8,7 @@ import SubscriptionSuccessToast from '@/components/dashboard/SubscriptionSuccess
 import OnboardingCompleteToast from '@/components/dashboard/OnboardingCompleteToast'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
+import AttentionBanner from '@/components/dashboard/AttentionBanner'
 import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
 import { ljDateString, ljMidnightUtc } from '@/lib/time'
@@ -59,6 +60,14 @@ export default async function DashboardPage({ params }: { params: { slug: string
   // Show the FURS reminder banner whenever there's no active certificate yet —
   // until then invoices are issued in FURS test mode.
   const showFursBanner = (activeCertCount ?? 0) === 0
+
+  const { data: attentionItems } = await supabase
+    .from('pos_attention_items')
+    .select('id, kind, message, invoice_id')
+    .eq('company_id', company.id)
+    .is('resolved_at', null)
+    .order('created_at', { ascending: false })
+    .limit(20)
 
   // All day/month boundaries are Slovenian local time (the server runs in UTC).
   const todayStr = ljDateString()
@@ -183,6 +192,10 @@ export default async function DashboardPage({ params }: { params: { slug: string
       />
       <main className="flex-1 p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-6">
+          {(attentionItems?.length ?? 0) > 0 && (
+            <AttentionBanner items={attentionItems!} companyId={company.id} slug={params.slug} />
+          )}
+
           {/* FURS certificate reminder — shown until an active certificate exists */}
           {showFursBanner && (
             <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">

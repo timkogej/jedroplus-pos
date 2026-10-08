@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal'
 import InvoicePDF from '@/components/invoice/InvoicePDF'
 import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
+import { computeInvoiceTotals } from '@/lib/invoice/totals'
 import type { InvoiceFormData, InvoiceItemForm, PosPremise, PosDevice, PosSettings, PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
 
 interface InvoiceFormProps {
@@ -162,7 +163,8 @@ export default function InvoiceForm({
   const clampedPoints = Math.max(0, Math.min(pointsToRedeem, maxRedeemablePoints))
   const loyaltyDiscount = clampedPoints * loyaltyRedeemValue
   const total = Math.max(0, subtotal - loyaltyDiscount)
-  const vatAmount = total * (vatRate / (100 + vatRate))
+  // VAT summed per rate (mixed 22 % / 9.5 % items), same maths as the server.
+  const vatAmount = computeInvoiceTotals(items, discountValue, loyaltyDiscount).vatAmount
 
   function updateItem(index: number, field: keyof InvoiceItemForm, value: string | number) {
     setItems((prev) =>
@@ -192,18 +194,10 @@ export default function InvoiceForm({
 
     setLoading(true)
     try {
-      // Lock in any loyalty redemption first, then attach it to the invoice.
-      let loyaltyRedeemRecordId: string | null = null
+      // Points are redeemed by the server together with the invoice — if issuing
+      // fails, nothing is spent. We only describe the discount in the notes here.
       let finalNotes = notes
       if (clampedPoints > 0 && loyaltyEnabled) {
-        const redeemRes = await authFetch('/api/loyalty/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyId, clientEmail: clientEmail.trim(), pointsToRedeem: clampedPoints }),
-        })
-        const redeemData = await redeemRes.json()
-        if (!redeemRes.ok) throw new Error(redeemData.error || 'Napaka pri unovčenju točk')
-        loyaltyRedeemRecordId = redeemData.recordId
         const note = `Loyalty popust: -${loyaltyDiscount.toFixed(2)} ${currencySymbol} (${clampedPoints} točk)`
         finalNotes = finalNotes ? `${finalNotes}\n${note}` : note
       }
@@ -233,7 +227,7 @@ export default function InvoiceForm({
           items,
           notes: finalNotes,
           currency: defaultCurrency,
-          loyaltyRedeemRecordId,
+          loyaltyPoints: loyaltyEnabled ? clampedPoints : 0,
         }),
       })
       const data = await res.json()
@@ -256,10 +250,10 @@ export default function InvoiceForm({
           payment_method: paymentMethod as 'cash' | 'card' | 'transfer',
           eor: data.eor,
           zoi: data.zoi,
-          total,
-          subtotal,
-          vat_rate: vatRate,
-          vat_amount: vatAmount,
+          total: data.total ?? total,
+          subtotal: data.subtotal ?? subtotal,
+          vat_rate: data.vatRate ?? vatRate,
+          vat_amount: data.vatAmount ?? vatAmount,
           discount_amount: discountValue,
           discount_type: discountAmount > 0 ? discountType : null,
           notes: finalNotes || null,

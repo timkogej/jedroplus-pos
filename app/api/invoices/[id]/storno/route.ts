@@ -250,6 +250,14 @@ export async function POST(
       .update({ status: 'storno_original', storno_invoice_id: stornoInvoice.id })
       .eq('id', original.id)
 
+    // A Stripe refund waiting for this storno is now handled.
+    await supabase
+      .from('pos_attention_items')
+      .update({ resolved_at: new Date().toISOString() })
+      .eq('invoice_id', original.id)
+      .eq('kind', 'refund_needs_storno')
+      .is('resolved_at', null)
+
     // Reverse any loyalty points earned from the original invoice. Non-blocking.
     try {
       await reversePointsForStorno(supabase, {
