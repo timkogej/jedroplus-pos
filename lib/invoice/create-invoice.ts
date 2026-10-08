@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'crypto'
 import { pdfStorageKey } from '@/lib/invoice/storage'
+import { resolveStrankeId } from '@/lib/loyalty/client'
 import { createServiceClient } from '@/lib/supabase'
 import { confirmInvoiceWithFurs } from '@/lib/furs/api'
 import { buildFursTaxes } from '@/lib/furs/taxes'
@@ -310,7 +311,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     await awardPointsForInvoice(supabase, {
       companyId,
       clientEmail: buyer.email,
-      clientId,
+      clientId: clientId ?? (await resolveStrankeId(supabase, companyId, buyer.email)),
       invoiceId: invoice.id,
       invoiceNumber,
       total,
