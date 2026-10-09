@@ -26,6 +26,11 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
 
   async function savePremise() {
     if (!newPremise.premise_id) { setError('Vnesite oznako prostora'); return }
+    // FURS: BusinessPremiseID / ElectronicDeviceID are 1-20 letters or digits.
+    if (!/^[A-Za-z0-9]{1,20}$/.test(newPremise.premise_id)) {
+      setError('Oznaka prostora sme vsebovati le črke in številke (največ 20 znakov, brez presledkov)')
+      return
+    }
     if (newPremise.premise_type !== 'movable' && !newPremise.house_number) {
       setError('Vnesite hišno številko (zahteva FURS)')
       return
@@ -59,6 +64,10 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
 
   async function saveDevice() {
     if (!newDevice.device_id || !newDevice.premise_id) { setError('Izpolnite podatke naprave'); return }
+    if (!/^[A-Za-z0-9]{1,20}$/.test(newDevice.device_id)) {
+      setError('Oznaka naprave sme vsebovati le črke in številke (največ 20 znakov, brez presledkov)')
+      return
+    }
     setAddingDevice(true)
     setError('')
     const { data, error: err } = await supabase

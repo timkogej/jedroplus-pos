@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { registerBusinessPremise } from '@/lib/furs/api'
+import { registerBusinessPremise, getFursEnvironment } from '@/lib/furs/api'
 import { FursError } from '@/lib/furs/types'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 
@@ -11,9 +11,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Manjkajo podatki' }, { status: 400 })
     }
 
-    console.log(
-      `[furs] register-premise: auth header ${req.headers.has('Authorization') ? 'prisoten' : 'MANJKA'}, premiseId=${premiseId}`
-    )
     const auth = await requireCompanyAccess(req, companyId)
     if ('response' in auth) return auth.response
 
@@ -68,6 +65,14 @@ export async function POST(req: NextRequest) {
           buildingNumber: premise.building_number,
           buildingSectionNumber: premise.building_section_number,
         }
+      } else if ((await getFursEnvironment(companyId)) === 'production') {
+        // Without real cadastral data the XML builder falls back to 1/1/1 — fine
+        // for the FURS test environment, but it would register false data with
+        // the tax authority in production.
+        return NextResponse.json(
+          { error: 'Za registracijo v produkciji vnesite katastrsko občino, številko stavbe in del stavbe (e-prostor.gov.si).' },
+          { status: 400 }
+        )
       }
     }
 
