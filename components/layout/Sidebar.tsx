@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
 import FursStatusIndicator from '@/components/layout/FursStatusIndicator'
 import NavPending from '@/components/layout/NavPending'
+import { useCompany } from '@/components/layout/CompanyContext'
 
 interface SidebarProps {
   slug: string
@@ -21,6 +22,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const clearCompanyData = usePosStore((s) => s.clearCompanyData)
+  const companyCtx = useCompany()
   const base = `/${slug}`
 
   // Warning badge on "Z-poročilo" when the day isn't closed yet and it's past
@@ -30,8 +32,8 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
     let cancelled = false
     async function check() {
       if (new Date().getHours() < 18) return
-      const { data: company } = await supabase.from('companies').select('id').eq('slug', slug).single()
-      if (!company || cancelled) return
+      const company = { id: companyCtx.id }
+      if (cancelled) return
       const now = new Date()
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       const { data: report } = await supabase
@@ -44,7 +46,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
     }
     check()
     return () => { cancelled = true }
-  }, [slug, pathname])
+  }, [slug, pathname, companyCtx.id])
 
   async function handleLogout() {
     clearCompanyData()
