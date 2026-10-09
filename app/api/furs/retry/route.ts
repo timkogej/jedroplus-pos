@@ -81,6 +81,13 @@ async function handleRetry(req: NextRequest) {
         throw new Error('Certifikat, prostor ali naprava ni najdena')
       }
 
+      const { data: vatSettings } = await supabase
+        .from('pos_settings')
+        .select('is_vat_registered')
+        .eq('company_id', inv.company_id)
+        .maybeSingle()
+      const vatRegistered = vatSettings?.is_vat_registered !== false
+
       const { data: itemRows } = await supabase
         .from('pos_invoice_items')
         .select('quantity, unit_price, vat_rate')
@@ -95,7 +102,9 @@ async function handleRetry(req: NextRequest) {
         electronicDeviceId: device.device_id,
         invoiceAmount: Number(inv.total).toFixed(2),
         paymentAmount: Number(inv.total).toFixed(2),
-        taxesPerSeller: itemRows?.length
+        taxesPerSeller: !vatRegistered
+          ? []
+          : itemRows?.length
           ? buildFursTaxes(
               itemRows.map((i) => ({
                 quantity: Number(i.quantity),

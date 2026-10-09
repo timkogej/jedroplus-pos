@@ -114,7 +114,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
   const [{ data: settings }, { data: premise }, { data: device }] = await Promise.all([
     supabase
       .from('pos_settings')
-      .select('invoice_prefix, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, furs_environment')
+      .select('invoice_prefix, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, furs_environment, is_vat_registered')
       .eq('company_id', companyId)
       .single(),
     supabase.from('pos_premises').select('premise_id, address, city, postal_code').eq('id', premiseId).single(),
@@ -182,7 +182,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       electronicDeviceId: device.device_id,
       invoiceAmount: total.toFixed(2),
       paymentAmount: total.toFixed(2),
-      taxesPerSeller: buildFursTaxes(items, total),
+      taxesPerSeller: buildFursTaxes(items, total, settings?.is_vat_registered !== false),
     }
 
     try {

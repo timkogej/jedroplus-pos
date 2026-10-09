@@ -122,6 +122,7 @@ interface Settings {
   invoice_number_length: number
   invoice_year_format: string
   invoice_year_reset: boolean
+  is_vat_registered: boolean | null
 }
 
 export default function InvoiceSettingsPage() {
@@ -136,6 +137,10 @@ export default function InvoiceSettingsPage() {
   const [numLen, setNumLen]         = useState(5)
   const [yearFmt, setYearFmt]       = useState<'full' | 'short'>('full')
   const [yearReset, setYearReset]   = useState(true)
+  const [vatRegistered, setVatRegistered] = useState(true)
+  // Counter as loaded; only written back if the user actually edits it (otherwise a
+  // stale value would roll the live counter back and duplicate invoice numbers).
+  const [initialCounter, setInitialCounter] = useState<number | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
@@ -159,7 +164,7 @@ export default function InvoiceSettingsPage() {
 
       const { data: s, error: settingsErr } = await supabase
         .from('pos_settings')
-        .select('id, invoice_prefix, invoice_counter, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, invoice_year_reset')
+        .select('id, invoice_prefix, invoice_counter, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, invoice_year_reset, is_vat_registered')
         .eq('company_id', company.id)
         .maybeSingle() as { data: Settings | null; error: { message: string } | null }
 
@@ -168,11 +173,13 @@ export default function InvoiceSettingsPage() {
       } else if (s) {
         setPrefix(s.invoice_prefix ?? 'R')
         setCounter(s.invoice_counter ?? 1)
+        setInitialCounter(s.invoice_counter ?? 1)
         setFormat((s.invoice_format as FormatId) ?? 'PREFIX-LETO4-PROSTOR-NAPRAVA-STEVILKA')
         setSeparator(s.invoice_separator ?? '-')
         setNumLen(s.invoice_number_length ?? 5)
         setYearFmt((s.invoice_year_format as 'full' | 'short') ?? 'full')
         setYearReset(s.invoice_year_reset ?? true)
+        setVatRegistered(s.is_vat_registered ?? true)
       }
       setLoading(false)
     }
@@ -202,12 +209,13 @@ export default function InvoiceSettingsPage() {
         {
           company_id:             companyId,
           invoice_prefix:        prefix,
-          invoice_counter:       counter,
+          ...(initialCounter === null || counter !== initialCounter ? { invoice_counter: counter } : {}),
           invoice_format:        format,
           invoice_separator:     effectiveSep,
           invoice_number_length: numLen,
           invoice_year_format:   yearFmt,
           invoice_year_reset:    yearReset,
+          is_vat_registered:     vatRegistered,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'company_id' }
@@ -379,6 +387,26 @@ export default function InvoiceSettingsPage() {
           <p className="text-xs text-gray-400 mt-2">
             Oblika: {FORMAT_DEFS.find((d) => d.id === format)?.label}
           </p>
+        </div>
+
+        {/* ── DDV ───────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">DDV</h3>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={vatRegistered}
+              onChange={(e) => setVatRegistered(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-brand"
+            />
+            <span>
+              <span className="block text-sm font-medium text-gray-900">Podjetje je zavezanec za DDV</span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Cene na računu so vedno z DDV. Če podjetje ni zavezanec, se DDV ne obračuna, na računu se izpiše
+                pripis po 94. členu ZDDV-1 in DDV ni prijavljen FURS-u.
+              </span>
+            </span>
+          </label>
         </div>
 
         {/* ── Error + Save ──────────────────────────────────── */}

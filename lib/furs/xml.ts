@@ -56,14 +56,17 @@ export function buildInvoiceRequestXml(req: FursInvoiceRequest, zoi: string): Bu
     .ele('fu:PaymentAmount').txt(req.paymentAmount).up()
 
   // Schema: TaxesPerSeller holds one fu:VAT element per tax rate (no wrapper).
-  const taxes = invoice.ele('fu:TaxesPerSeller')
-  for (const tax of req.taxesPerSeller) {
-    taxes
-      .ele('fu:VAT')
-        .ele('fu:TaxRate').txt(tax.taxRate.toFixed(2)).up()
-        .ele('fu:TaxableAmount').txt(tax.taxableAmount.toFixed(2)).up()
-        .ele('fu:TaxAmount').txt(tax.taxAmount.toFixed(2)).up()
-      .up()
+  // Omitted entirely for companies that are not VAT payers.
+  if (req.taxesPerSeller.length > 0) {
+    const taxes = invoice.ele('fu:TaxesPerSeller')
+    for (const tax of req.taxesPerSeller) {
+      taxes
+        .ele('fu:VAT')
+          .ele('fu:TaxRate').txt(tax.taxRate.toFixed(2)).up()
+          .ele('fu:TaxableAmount').txt(tax.taxableAmount.toFixed(2)).up()
+          .ele('fu:TaxAmount').txt(tax.taxAmount.toFixed(2)).up()
+        .up()
+    }
   }
 
   // Schema sequence: OperatorTaxNumber?, ForeignOperator?, ProtectedID,

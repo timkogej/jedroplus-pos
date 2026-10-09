@@ -59,7 +59,7 @@ export async function POST(
     const [{ data: settings }, { data: certRow }] = await Promise.all([
       supabase
         .from('pos_settings')
-        .select('invoice_prefix, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, furs_environment')
+        .select('invoice_prefix, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, furs_environment, is_vat_registered')
         .eq('company_id', companyId)
         .single(),
       supabase
@@ -164,12 +164,14 @@ export async function POST(
         paymentAmount: stornoTotal.toFixed(2),
         // Per-rate breakdown from the (negated) original items so mixed-VAT
         // invoices are reversed correctly; single-rate fallback if none stored.
-        taxesPerSeller: originalItems.length > 0
-          ? buildFursTaxes(
-              originalItems.map((i) => ({ quantity: i.quantity, unit_price: -i.unit_price, vat_rate: i.vat_rate })),
-              stornoTotal
-            )
-          : singleFursTax(original.vat_rate, stornoVat, stornoTotal),
+        taxesPerSeller: settings?.is_vat_registered === false
+          ? []
+          : originalItems.length > 0
+            ? buildFursTaxes(
+                originalItems.map((i) => ({ quantity: i.quantity, unit_price: -i.unit_price, vat_rate: i.vat_rate })),
+                stornoTotal
+              )
+            : singleFursTax(original.vat_rate, stornoVat, stornoTotal),
         referenceInvoice: {
           referenceInvoiceNumber: original.invoice_number,
           referenceInvoiceCounter: original.invoice_counter ?? undefined,

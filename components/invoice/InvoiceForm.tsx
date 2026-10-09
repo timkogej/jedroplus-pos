@@ -51,7 +51,9 @@ export default function InvoiceForm({
   companyData,
 }: InvoiceFormProps) {
   const router = useRouter()
-  const defaultVat = settings?.default_vat_rate ?? 22
+  // Companies that are not VAT payers issue invoices without VAT (0 %, no rate choice).
+  const vatExempt = settings?.is_vat_registered === false
+  const defaultVat = vatExempt ? 0 : settings?.default_vat_rate ?? 22
   const defaultCurrency = prefill?.currency || settings?.currency || 'EUR'
   const currencySymbol = defaultCurrency === 'EUR' ? '€' : defaultCurrency
 
@@ -69,7 +71,9 @@ export default function InvoiceForm({
   )
   const [paymentMethod, setPaymentMethod] = useState(prefill?.payment_method ?? 'cash')
   const [items, setItems] = useState<InvoiceItemForm[]>(
-    prefill?.items?.length ? prefill.items : [emptyItem(defaultVat)]
+    prefill?.items?.length
+      ? prefill.items.map((i) => (vatExempt ? { ...i, vat_rate: 0 } : i))
+      : [emptyItem(defaultVat)]
   )
   const [discountAmount, setDiscountAmount] = useState(prefill?.discount_amount ?? 0)
   const [discountType, setDiscountType] = useState<'%' | '€'>(
@@ -495,11 +499,13 @@ export default function InvoiceForm({
                     value={item.unit_price}
                     onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
                   />
-                  <Select
-                    options={VAT_OPTIONS}
-                    value={String(item.vat_rate)}
-                    onChange={(e) => updateItem(index, 'vat_rate', parseFloat(e.target.value))}
-                  />
+                  {!vatExempt && (
+                    <Select
+                      options={VAT_OPTIONS}
+                      value={String(item.vat_rate)}
+                      onChange={(e) => updateItem(index, 'vat_rate', parseFloat(e.target.value))}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -534,12 +540,14 @@ export default function InvoiceForm({
                   />
                 </div>
                 <div className="col-span-2">
-                  <Select
-                    label={index === 0 ? 'DDV' : ''}
-                    options={VAT_OPTIONS}
-                    value={String(item.vat_rate)}
-                    onChange={(e) => updateItem(index, 'vat_rate', parseFloat(e.target.value))}
-                  />
+                  {!vatExempt && (
+                    <Select
+                      label={index === 0 ? 'DDV' : ''}
+                      options={VAT_OPTIONS}
+                      value={String(item.vat_rate)}
+                      onChange={(e) => updateItem(index, 'vat_rate', parseFloat(e.target.value))}
+                    />
+                  )}
                 </div>
                 <div className="col-span-1 flex justify-center pb-0.5">
                   <button
@@ -655,7 +663,7 @@ export default function InvoiceForm({
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Cena brez DDV</span>
+            <span className="text-gray-600">{vatExempt ? 'Vmesna vsota' : 'Vmesna vsota (z DDV)'}</span>
             <span className="text-gray-900 font-medium">{itemsTotal.toFixed(2)} {currencySymbol}</span>
           </div>
           {discountValue > 0 && (
@@ -670,12 +678,16 @@ export default function InvoiceForm({
               <span className="text-green-700 font-medium">-{loyaltyDiscount.toFixed(2)} {currencySymbol}</span>
             </div>
           )}
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">DDV ({vatRate}%)</span>
-            <span className="text-gray-900 font-medium">{vatAmount.toFixed(2)} {currencySymbol}</span>
-          </div>
+          {vatExempt ? (
+            <p className="text-xs text-gray-500">DDV ni obračunan (1. odst. 94. člena ZDDV-1).</p>
+          ) : (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Od tega DDV</span>
+              <span className="text-gray-700">{vatAmount.toFixed(2)} {currencySymbol}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center border-t border-gray-100 pt-3 mt-1">
-            <span className="text-sm font-semibold text-gray-900">Skupaj z DDV</span>
+            <span className="text-sm font-semibold text-gray-900">{vatExempt ? 'Skupaj' : 'Skupaj z DDV'}</span>
             <span className="text-xl font-semibold gradient-text">{total.toFixed(2)} {currencySymbol}</span>
           </div>
         </div>

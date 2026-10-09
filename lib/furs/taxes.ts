@@ -9,8 +9,12 @@ const round2 = (n: number) => Math.round(n * 100) / 100
  */
 export function buildFursTaxes(
   items: Array<{ quantity: number; unit_price: number; vat_rate: number }>,
-  chargedTotal: number
+  chargedTotal: number,
+  vatRegistered = true
 ): FursTax[] {
+  // A company that is not a VAT payer reports no VAT breakdown to FURS.
+  if (!vatRegistered) return []
+
   const grossByRate = new Map<number, number>()
   for (const item of items) {
     const gross = item.quantity * item.unit_price

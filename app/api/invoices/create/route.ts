@@ -3,6 +3,7 @@ import { createInvoice, InvoiceValidationError } from '@/lib/invoice/create-invo
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import { rateLimit } from '@/lib/rate-limit'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
+import { withVatExemptNote } from '@/lib/invoice/vat'
 import { createServiceClient } from '@/lib/supabase'
 import { getLoyaltySettings } from '@/lib/loyalty/award'
 import { getPointsBalance } from '@/lib/loyalty/balance'
@@ -79,6 +80,17 @@ export async function POST(req: NextRequest) {
       loyaltyDiscount = points * loyalty.loyalty_redeem_value
     }
 
+    // A company that is not a VAT payer never charges VAT, whatever the browser sent.
+    const { data: vatSettings } = await createServiceClient()
+      .from('pos_settings')
+      .select('is_vat_registered')
+      .eq('company_id', companyId)
+      .maybeSingle()
+    const vatExempt = vatSettings?.is_vat_registered === false
+    if (vatExempt) {
+      for (const it of items) it.vat_rate = 0
+    }
+
     const totals = computeInvoiceTotals(items, discountValue ?? 0, loyaltyDiscount)
     if (points > 0 && totals.loyaltyDiscount + 0.005 < loyaltyDiscount) {
       throw new ValidationError('Vrednost točk presega znesek računa')
@@ -110,7 +122,7 @@ export async function POST(req: NextRequest) {
         companyName: clientCompanyName,
         companyTax: clientCompanyTax,
       },
-      notes,
+      notes: vatExempt ? withVatExemptNote(notes) : notes,
       currency,
       loyaltyRedeemRecordId: loyaltyRedeemRecordId ?? null,
       loyaltyPoints: points,

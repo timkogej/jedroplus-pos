@@ -81,3 +81,16 @@ describe('buildFursTaxes', () => {
     expect(t.taxableAmount).toBe(-100)
   })
 })
+
+
+describe('companies that are not VAT payers', () => {
+  it('report no tax breakdown to FURS', () => {
+    expect(buildFursTaxes([{ quantity: 1, unit_price: 50, vat_rate: 0 }], 50, false)).toEqual([])
+  })
+
+  it('omit TaxesPerSeller from the XML when there is no breakdown', () => {
+    const { xml } = buildInvoiceRequestXml({ ...base, taxesPerSeller: [] }, 'c'.repeat(32))
+    expect(xml).not.toContain('TaxesPerSeller')
+    expect(xml).toContain('<fu:ProtectedID>')
+  })
+})
