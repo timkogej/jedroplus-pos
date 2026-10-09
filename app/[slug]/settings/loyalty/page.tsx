@@ -19,6 +19,8 @@ export default function LoyaltySettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [companyId, setCompanyId] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -27,13 +29,18 @@ export default function LoyaltySettingsPage() {
         .select('id')
         .eq('slug', slug)
         .single()
-      if (!company) return
+      if (!company) {
+        setLoading(false)
+        return
+      }
+      setCompanyId(company.id)
 
+      // maybeSingle: a brand-new company may not have a settings row yet.
       const { data: s } = await supabase
         .from('pos_settings')
         .select('*')
         .eq('company_id', company.id)
-        .single()
+        .maybeSingle()
 
       if (s) {
         setSettings(s)
@@ -47,18 +54,37 @@ export default function LoyaltySettingsPage() {
   }, [slug])
 
   async function save() {
-    if (!settings) return
+    if (!companyId) return
+    setError('')
+
+    if (enabled) {
+      if (!(earnRate > 0 && earnRate <= 1000)) {
+        setError('Točke na 1 € morajo biti med 0,1 in 1000.')
+        return
+      }
+      if (!(redeemValue >= 0.001 && redeemValue <= 10)) {
+        setError('Vrednost točke mora biti med 0,001 € in 10 €.')
+        return
+      }
+    }
+
     setSaving(true)
-    await supabase
-      .from('pos_settings')
-      .update({
+    // upsert: works whether or not the settings row exists yet.
+    const { error: err } = await supabase.from('pos_settings').upsert(
+      {
+        company_id: companyId,
         loyalty_enabled: enabled,
         loyalty_earn_rate: earnRate,
         loyalty_redeem_value: redeemValue,
         updated_at: new Date().toISOString(),
-      })
-      .eq('id', settings.id)
+      },
+      { onConflict: 'company_id' }
+    )
     setSaving(false)
+    if (err) {
+      setError(err.message)
+      return
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -135,6 +161,10 @@ export default function LoyaltySettingsPage() {
             hint={`100 točk = ${hundredPointsValue} € popusta.`}
           />
         </div>
+
+        {error && (
+          <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 mb-4">{error}</div>
+        )}
 
         <div className="flex items-center gap-3">
           <Button onClick={save} loading={saving}>

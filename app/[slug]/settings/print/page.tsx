@@ -24,6 +24,8 @@ export default function PrintSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [companyId, setCompanyId] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -32,13 +34,17 @@ export default function PrintSettingsPage() {
         .select('id')
         .eq('slug', slug)
         .single()
-      if (!company) return
+      if (!company) {
+        setLoading(false)
+        return
+      }
+      setCompanyId(company.id)
 
       const { data: s } = await supabase
         .from('pos_settings')
         .select('*')
         .eq('company_id', company.id)
-        .single()
+        .maybeSingle()
 
       if (s) {
         setSettings(s)
@@ -50,13 +56,20 @@ export default function PrintSettingsPage() {
   }, [slug])
 
   async function save() {
-    if (!settings) return
+    if (!companyId) return
+    setError('')
     setSaving(true)
-    await supabase
+    const { error: err } = await supabase
       .from('pos_settings')
-      .update({ print_format: selected, updated_at: new Date().toISOString() })
-      .eq('id', settings.id)
+      .upsert(
+        { company_id: companyId, print_format: selected, updated_at: new Date().toISOString() },
+        { onConflict: 'company_id' }
+      )
     setSaving(false)
+    if (err) {
+      setError(err.message)
+      return
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -108,6 +121,10 @@ export default function PrintSettingsPage() {
             </button>
           ))}
         </div>
+
+        {error && (
+          <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 mb-4">{error}</div>
+        )}
 
         <div className="flex items-center gap-3">
           <Button onClick={save} loading={saving}>

@@ -90,8 +90,33 @@ export default function CompanyDataPage() {
 
   async function save() {
     if (!companyId) return
-    setSaving(true)
     setError('')
+
+    // An invoice must show who issued it. Check the common mistakes up front.
+    const clean = (v: string) => v.replace(/\s+/g, '')
+    const problems: string[] = []
+    if (!data.company_name.trim()) problems.push('Vnesite naziv podjetja.')
+    if (!data.address.trim() || !data.postal_code.trim() || !data.city.trim()) {
+      problems.push('Vnesite naslov (ulica, poštna številka, kraj).')
+    }
+    if (data.tax_number && !/^\d{8}$/.test(clean(data.tax_number))) {
+      problems.push('Davčna številka ima 8 številk (brez SI).')
+    }
+    if (data.vat_id && !/^SI\d{8}$/i.test(clean(data.vat_id))) {
+      problems.push('ID za DDV mora biti v obliki SI12345678.')
+    }
+    if (data.iban && !/^SI56\d{17}$/i.test(clean(data.iban))) {
+      problems.push('IBAN mora biti slovenski (SI56 in 17 številk).')
+    }
+    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+      problems.push('E-poštni naslov ni veljaven.')
+    }
+    if (problems.length) {
+      setError(problems.join(' '))
+      return
+    }
+
+    setSaving(true)
 
     const payload = {
       company_id: companyId,
@@ -100,9 +125,9 @@ export default function CompanyDataPage() {
       postal_code: data.postal_code || null,
       city: data.city || null,
       country: data.country || 'Slovenija',
-      tax_number: data.tax_number || null,
-      vat_id: data.vat_id || null,
-      iban: data.iban || null,
+      tax_number: clean(data.tax_number) || null,
+      vat_id: clean(data.vat_id).toUpperCase() || null,
+      iban: clean(data.iban).toUpperCase() || null,
       bank: data.bank || null,
       email: data.email || null,
       phone: data.phone || null,

@@ -25,7 +25,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Neveljaven datum' }, { status: 400 })
     }
 
+    // A closed day is locked for new invoices, so a future date would block
+    // tomorrow's sales. Only today or earlier can be closed.
+    if (date > localDateString()) {
+      return NextResponse.json({ error: 'Dneva v prihodnosti ni mogoče zaključiti' }, { status: 400 })
+    }
+
     const supabase = createServiceClient()
+
+    // premise/device ids come from the browser — they must be this company's.
+    if (premiseId) {
+      const { data: p } = await supabase
+        .from('pos_premises').select('id').eq('id', premiseId).eq('company_id', companyId).maybeSingle()
+      if (!p) return NextResponse.json({ error: 'Poslovni prostor ni najden' }, { status: 400 })
+    }
+    if (deviceId) {
+      const { data: d } = await supabase
+        .from('pos_devices').select('id').eq('id', deviceId).eq('company_id', companyId).maybeSingle()
+      if (!d) return NextResponse.json({ error: 'Naprava ni najdena' }, { status: 400 })
+    }
 
     // --- One Z-report per company per day ----------------------------------
     const { data: existing } = await supabase

@@ -133,11 +133,23 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       .select('invoice_prefix, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, furs_environment, is_vat_registered')
       .eq('company_id', companyId)
       .single(),
-    supabase.from('pos_premises').select('premise_id, address, city, postal_code').eq('id', premiseId).single(),
-    supabase.from('pos_devices').select('device_id').eq('id', deviceId).single(),
+    // Scoped to the company: ids come from the browser, and without this a user
+    // of company A could issue invoices under company B's premise/device codes.
+    supabase
+      .from('pos_premises')
+      .select('premise_id, address, city, postal_code')
+      .eq('id', premiseId)
+      .eq('company_id', companyId)
+      .maybeSingle(),
+    supabase
+      .from('pos_devices')
+      .select('device_id, premise_id')
+      .eq('id', deviceId)
+      .eq('company_id', companyId)
+      .maybeSingle(),
   ])
 
-  if (!premise || !device) {
+  if (!premise || !device || (device as { premise_id?: string }).premise_id !== premiseId) {
     throw new InvoiceValidationError('Poslovni prostor ali naprava ni najdena')
   }
 

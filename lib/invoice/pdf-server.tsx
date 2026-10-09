@@ -1,6 +1,7 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Image, renderToBuffer } from '@react-pdf/renderer'
 import QRCode from 'qrcode'
+import { buildFursQrCode } from '@/lib/furs/qr'
 import type { PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
 
 export interface PdfGenerateOptions {
@@ -75,12 +76,16 @@ export async function generateInvoicePdf(opts: PdfGenerateOptions): Promise<Buff
     loyaltyEarned,
   } = opts
 
-  const qrContent = invoice.zoi
-    ? `https://blagajne.fu.gov.si/0/${invoice.zoi}`
-    : invoice.eor ?? invoice.invoice_number
+  // Official FURS verification code (60 digits). Demo invoices without a
+  // certificate get an all-zero tax number so the layout can still be checked.
+  const qrContent =
+    buildFursQrCode(invoice.zoi, taxNumber ?? '00000000', new Date(invoice.invoice_date)) ??
+    invoice.zoi ??
+    invoice.invoice_number
   let qrDataUrl: string | null = null
   try {
-    qrDataUrl = await QRCode.toDataURL(qrContent, { type: 'image/png', width: 160, margin: 1 })
+    // ISO/IEC 15415 / FURS: error correction level L, quiet zone around the code.
+    qrDataUrl = await QRCode.toDataURL(qrContent, { type: 'image/png', width: 240, margin: 2, errorCorrectionLevel: 'L' })
   } catch {
     // QR generation is best-effort
   }
@@ -377,7 +382,7 @@ export async function generateInvoicePdf(opts: PdfGenerateOptions): Promise<Buff
                 {qrDataUrl && (
                   <View style={{ alignItems: 'center', justifyContent: 'flex-start', paddingTop: 2 }}>
                     <Image src={qrDataUrl} style={{ width: 90, height: 90 }} />
-                    <Text style={{ fontSize: 6, color: '#9ca3af', textAlign: 'center', marginTop: 2 }}>Preverite EOR</Text>
+                    <Text style={{ fontSize: 6, color: '#9ca3af', textAlign: 'center', marginTop: 2 }}>Koda za preverjanje</Text>
                   </View>
                 )}
               </View>
