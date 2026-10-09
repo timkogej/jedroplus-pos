@@ -138,7 +138,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     // of company A could issue invoices under company B's premise/device codes.
     supabase
       .from('pos_premises')
-      .select('premise_id, address, city, postal_code')
+      .select('*')
       .eq('id', premiseId)
       .eq('company_id', companyId)
       .maybeSingle(),
@@ -152,6 +152,10 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
 
   if (!premise || !device || (device as { premise_id?: string }).premise_id !== premiseId) {
     throw new InvoiceValidationError('Poslovni prostor ali naprava ni najdena')
+  }
+
+  if ((premise as { furs_closed?: boolean }).furs_closed) {
+    throw new InvoiceValidationError('Poslovni prostor je pri FURS trajno zaprt. Izberite drug prostor.')
   }
 
   const environment = settings?.furs_environment ?? 'test'

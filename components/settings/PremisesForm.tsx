@@ -5,6 +5,7 @@ import { authFetch } from '@/lib/authFetch'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { PosPremise, PosDevice } from '@/types'
 
 interface Props {
@@ -22,6 +23,8 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
   const [addingPremise, setAddingPremise] = useState(false)
   const [addingDevice, setAddingDevice] = useState(false)
   const [registeringId, setRegisteringId] = useState<string | null>(null)
+  const [confirmCloseId, setConfirmCloseId] = useState<string | null>(null)
+  const [closingId, setClosingId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   async function savePremise() {
@@ -107,6 +110,27 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
     setRegisteringId(null)
   }
 
+  async function closeWithFurs(id: string) {
+    setClosingId(id)
+    setError('')
+    const res = await authFetch('/api/furs/close-premise', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId, premiseId: id }),
+    })
+    const data = await res.json()
+    setClosingId(null)
+    setConfirmCloseId(null)
+    if (!res.ok) {
+      setError(data.error ?? 'Napaka pri zaprtju pri FURS')
+      return
+    }
+    setPremises((p) => p.map((pr) =>
+      pr.id === id ? { ...pr, furs_closed: true, furs_closed_at: new Date().toISOString(), is_active: false } : pr
+    ))
+    setDevices((d) => d.map((dv) => (dv.premise_id === id ? { ...dv, is_active: false } : dv)))
+  }
+
   const premiseOptions = premises.map((p) => ({ value: p.id, label: `${p.premise_id} - ${p.address ?? ''}` }))
 
   return (
@@ -132,12 +156,18 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
                   <p className="text-xs text-gray-400">{p.premise_type === 'movable' ? 'Mobilna blagajna' : 'Fiksni prostor'}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {p.furs_closed ? (
+                    <span className="text-xs px-3 py-1 rounded-full border bg-gray-100 border-gray-200 text-gray-600">
+                      Trajno zaprt pri FURS
+                    </span>
+                  ) : (
                   <span
                     className={`text-xs px-3 py-1 rounded-full border ${p.furs_registered ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}
                   >
                     {p.furs_registered ? 'Registriran pri FURS' : 'Ni registriran'}
                   </span>
-                  {!p.furs_registered && (
+                  )}
+                  {!p.furs_registered && !p.furs_closed && (
                     <Button
                       onClick={() => registerWithFurs(p.id)}
                       loading={registeringId === p.id}
@@ -146,12 +176,19 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
                       Registriraj pri FURS
                     </Button>
                   )}
+                  {p.furs_registered && !p.furs_closed && (
+                    <Button variant="danger" size="sm" onClick={() => setConfirmCloseId(p.id)}>
+                      Zapri pri FURS
+                    </Button>
+                  )}
+                  {!p.furs_closed && (
                   <button
                     onClick={() => togglePremise(p.id, p.is_active)}
                     className={`text-xs px-3 py-1 rounded-full border ${p.is_active ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
                   >
                     {p.is_active ? 'Aktiven' : 'Neaktiven'}
                   </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -274,6 +311,17 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{error}</div>
       )}
+      <ConfirmDialog
+        open={confirmCloseId !== null}
+        danger
+        title="Trajno zapri poslovni prostor"
+        message="Prostor se pri FURS trajno zapre. Po zaprtju z njim ni več mogoče izdajati računov in tega ni mogoče razveljaviti. Za začasen izklop uporabite stikalo Aktiven/Neaktiven."
+        confirmLabel="Trajno zapri"
+        cancelLabel="Prekliči"
+        loading={closingId !== null}
+        onCancel={() => setConfirmCloseId(null)}
+        onConfirm={() => confirmCloseId && closeWithFurs(confirmCloseId)}
+      />
     </div>
   )
 }

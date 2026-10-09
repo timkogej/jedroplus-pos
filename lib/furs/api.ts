@@ -4,6 +4,7 @@ import { loadCertificate, validateCertificate, type CertificateInfo } from './ce
 import { calculateZoi, buildZoiInput } from './zoi'
 import { buildInvoiceRequestXml, buildBusinessPremiseRequestXml, buildEchoRequestXml, type FursPremiseAddress, type FursCadastralData } from './xml'
 import { signXmlWithPems } from './sign'
+import { ljDateString } from '@/lib/time'
 import { FursError, type FursEnvironment, type FursInvoiceRequest, type FursResponse } from './types'
 
 /** FURS error codes documented in the ZDavPR technical spec. */
@@ -167,7 +168,8 @@ export async function registerBusinessPremise(
   companyId: string,
   premiseId: string,
   address?: FursPremiseAddress,
-  cadastralData?: FursCadastralData
+  cadastralData?: FursCadastralData,
+  opts: { closing?: boolean } = {}
 ): Promise<void> {
   const cert = await getActiveCertificate(companyId)
   if (!cert) throw new FursError('NO_CERTIFICATE', 'Certifikat ni naložen')
@@ -179,7 +181,8 @@ export async function registerBusinessPremise(
     address,
     cadastralData,
     softwareSupplierTaxNumber: softwareSupplierTaxNumber(),
-    validityDate: new Date().toISOString().slice(0, 10),
+    validityDate: ljDateString(), // Slovenian date, not UTC
+    closing: opts.closing,
   })
   const signedXml = signXmlWithPems(xml.xml, cert.privateKeyPem, cert.certificatePem)
 
@@ -195,7 +198,7 @@ export async function registerBusinessPremise(
   if (errorCode) {
     const message = FURS_ERROR_MESSAGES[errorCode]
       ?? responseXml.match(/<[^>]*ErrorMessage[^>]*>([^<]+)</)?.[1]?.trim()
-      ?? 'FURS je zavrnil registracijo poslovnega prostora'
+      ?? (opts.closing ? 'FURS je zavrnil zaprtje poslovnega prostora' : 'FURS je zavrnil registracijo poslovnega prostora')
     throw new FursError(errorCode, message)
   }
 }

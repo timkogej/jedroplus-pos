@@ -71,6 +71,8 @@ export interface PosPremise {
   is_active: boolean
   furs_registered: boolean
   furs_registered_at: string | null
+  furs_closed?: boolean
+  furs_closed_at?: string | null
   created_at: string
 }
 
