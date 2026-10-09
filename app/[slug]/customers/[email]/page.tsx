@@ -27,7 +27,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ slug
   const email = decodeURIComponent(params.email).trim().toLowerCase()
   const supabase = createServiceClient()
 
-  const [loyalty, { data: stranka }, { data: ledger }, { data: invoices }] = await Promise.all([
+  const [loyalty, { data: stranka }, { data: ledger }, { data: invoices }, balance] = await Promise.all([
     getLoyaltySettings(supabase, company.id),
     supabase
       .from('Stranke')
@@ -50,11 +50,12 @@ export default async function CustomerDetailPage(props: { params: Promise<{ slug
       .ilike('client_email', email.replace(/[\\%_]/g, (c) => `\\${c}`))
       .order('invoice_date', { ascending: false })
       .limit(10),
+    // In parallel with the rest instead of afterwards (ignored if loyalty is off).
+    getPointsBalance(company.id, email, supabase),
   ])
 
   const s = stranka as Record<string, string | null> | null
   const name = s?.Stranka || `${s?.Ime ?? ''} ${s?.Priimek ?? ''}`.trim() || email
-  const balance = loyalty.loyalty_enabled ? await getPointsBalance(company.id, email, supabase) : 0
 
   return (
     <div className="flex flex-col min-h-screen">

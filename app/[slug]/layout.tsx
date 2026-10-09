@@ -1,12 +1,46 @@
 import { createServiceClient } from '@/lib/supabase'
+import { unstable_cache } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Sidebar from '@/components/layout/Sidebar'
 import MobileNav from '@/components/layout/MobileNav'
 import AuthGuard from '@/components/layout/AuthGuard'
+import NavigationProgress from '@/components/layout/NavigationProgress'
 import SubscriptionBanner from '@/components/layout/SubscriptionBanner'
 import MissedClosingBanner from '@/components/layout/MissedClosingBanner'
 import { dayBounds, localDateString } from '@/lib/z-report/calculate'
+
+const getLayoutData = unstable_cache(
+  async (companyId: string, companyCode: string | null, yesterday: string) => {
+    const supabase = createServiceClient()
+    const { start: yStart, end: yEnd } = dayBounds(yesterday)
+    const [{ data: subscription }, { data: yesterdayReport }, { count }, { data: branding }] = await Promise.all([
+      supabase
+        .from('pos_subscriptions')
+        .select('status, trial_ends_at, current_period_end, canceled_at')
+        .eq('company_id', companyId)
+        .maybeSingle(),
+      supabase.from('pos_z_reports').select('id').eq('company_id', companyId).eq('report_date', yesterday).maybeSingle(),
+      supabase
+        .from('pos_invoices')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .gte('invoice_date', yStart)
+        .lt('invoice_date', yEnd),
+      companyCode
+        ? supabase.from('Podatki podjetij').select('"Naziv Podjetja"').eq('ID Podjetja', companyCode).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+    return {
+      subscription: subscription ?? null,
+      yesterdayReport: yesterdayReport ?? null,
+      yesterdayInvoiceCount: count ?? 0,
+      branding: (branding as Record<string, string | null> | null) ?? null,
+    }
+  },
+  ['company-layout-data'],
+  { revalidate: 60, tags: ['layout-data'] }
+)
 
 export default async function CompanyLayout(
   props: {
@@ -25,41 +59,15 @@ export default async function CompanyLayout(
   // Verify the slug exists at all; redirect to login if not.
   const company = await requireCompanyForSlug(params.slug)
 
-  // Everything below is independent — fetch it in one round trip instead of
-  // four sequential ones (this layout runs on every navigation).
+  // Subscription, yesterday's closing and the display name — cached for 60 s per
+  // company (the Stripe webhook clears it when a subscription changes), so most
+  // navigations skip these database round trips entirely.
   const yesterday = localDateString(new Date(Date.now() - 24 * 60 * 60 * 1000))
-  const { start: yStart, end: yEnd } = dayBounds(yesterday)
-  const [
-    { data: subscription },
-    { data: yesterdayReport },
-    { count: yesterdayInvoiceCount },
-    { data: branding },
-  ] = await Promise.all([
-    supabase
-      .from('pos_subscriptions')
-      .select('status, trial_ends_at, current_period_end, canceled_at')
-      .eq('company_id', company.id)
-      .maybeSingle(),
-    supabase
-      .from('pos_z_reports')
-      .select('id')
-      .eq('company_id', company.id)
-      .eq('report_date', yesterday)
-      .maybeSingle(),
-    supabase
-      .from('pos_invoices')
-      .select('id', { count: 'exact', head: true })
-      .eq('company_id', company.id)
-      .gte('invoice_date', yStart)
-      .lt('invoice_date', yEnd),
-    company.company_id
-      ? supabase
-          .from('Podatki podjetij')
-          .select('"Naziv Podjetja"')
-          .eq('ID Podjetja', company.company_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-  ])
+  const { subscription, yesterdayReport, yesterdayInvoiceCount, branding } = await getLayoutData(
+    company.id,
+    company.company_id,
+    yesterday
+  )
 
   // --- Subscription guard -------------------------------------------------
   // The slug identifies the company, so we can gate access server-side without
@@ -92,6 +100,7 @@ export default async function CompanyLayout(
     // AuthGuard runs client-side: verifies session, confirms slug belongs to the
     // logged-in user, and redirects to the correct slug if mismatched.
     <AuthGuard slug={params.slug}>
+      <NavigationProgress />
       <div className="flex min-h-screen">
         <Sidebar slug={params.slug} companyName={displayName} />
         <div className="flex-1 flex flex-col min-w-0 pb-16 md:ml-56 md:pb-0">

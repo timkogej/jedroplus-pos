@@ -30,12 +30,22 @@ function LoginPageInner() {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // True from the moment sign-in succeeded until the next page has taken over.
+  const [redirecting, setRedirecting] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
 
+    // Once we navigate, the button must stay in its loading state — the next page
+    // still takes a moment to arrive, and an idle-looking form felt like a freeze.
+    let navigating = false
+    const go = (url: string) => {
+      navigating = true
+      setRedirecting(true)
+      router.push(url)
+    }
 
     try {
       // Step 1: auth — must succeed before any DB query
@@ -48,7 +58,7 @@ function LoginPageInner() {
       if (!authData.user) throw new Error('Prijava ni uspela')
 
       // Step 2-4: resolve company via profiles table
-      const company = await resolveCompanyForUser(supabase, authData.user.id)
+      const company = await resolveCompanyForUser(supabase, authData.user.id, { branding: false })
 
       if (!company) {
         await supabase.auth.signOut()
@@ -74,7 +84,7 @@ function LoginPageInner() {
         if (plan) params.set('plan', plan)
         if (interval) params.set('interval', interval)
         const qs = params.toString()
-        router.push(qs ? `/pricing?${qs}` : '/pricing')
+        go(qs ? `/pricing?${qs}` : '/pricing')
         return
       }
 
@@ -83,22 +93,32 @@ function LoginPageInner() {
       // subscription=success flag through so the success toast still appears.
       if (redirect && redirect.startsWith('/')) {
         const subscription = searchParams.get('subscription')
-        router.push(subscription ? `${redirect}?subscription=${subscription}` : redirect)
+        go(subscription ? `${redirect}?subscription=${subscription}` : redirect)
         return
       }
 
-      router.push(`/${company.slug}/dashboard`)
+      go(`/${company.slug}/dashboard`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Napaka pri prijavi'
       console.error('[login] error:', msg, err)
       setError(msg)
     } finally {
-      setLoading(false)
+      if (!navigating) setLoading(false)
     }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4">
+      {redirecting && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-black/90"
+        >
+          <div className="h-9 w-9 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          <p className="text-sm font-medium text-white/90">Prijavljanje … nalagam vašo blagajno</p>
+        </div>
+      )}
       <div className="w-full max-w-sm">
         <motion.div
           initial={{ opacity: 0, y: -20 }}

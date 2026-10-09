@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pdfStorageKey, signedPdfUrl } from '@/lib/invoice/storage'
+import { revalidateTag } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import { rateLimitDb } from '@/lib/rate-limit'
@@ -148,6 +149,7 @@ export async function POST(req: NextRequest) {
       console.error('[z-report create] PDF generation failed (non-blocking):', pdfErr)
     }
 
+    revalidateTag('layout-data') // the "yesterday not closed" banner is cached for 60 s
     return NextResponse.json({
       report: { ...report, pdf_url: await signedPdfUrl(supabase, 'z-reports', pdfUrl ?? report.pdf_url) },
       reportLabel,
