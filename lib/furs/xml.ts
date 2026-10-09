@@ -1,6 +1,7 @@
 import { create } from 'xmlbuilder2'
 import { randomUUID } from 'crypto'
 import type { FursInvoiceRequest } from './types'
+import { ljIsoLocal } from '@/lib/time'
 
 // Per FURS technical documentation v3.1 §3.2.3 (and FURS's own responses):
 // the fu namespace is exactly "http://www.fu.gov.si/".
@@ -49,20 +50,23 @@ export function buildInvoiceRequestXml(req: FursInvoiceRequest, zoi: string): Bu
     .ele('fu:InvoiceIdentifier')
       .ele('fu:BusinessPremiseID').txt(req.businessPremiseId).up()
       .ele('fu:ElectronicDeviceID').txt(req.electronicDeviceId).up()
-      .ele('fu:InvoiceNumber').txt(extractInvoiceCounter(req.invoiceNumber)).up()
+      .ele('fu:InvoiceNumber').txt(String(req.invoiceCounter ?? extractInvoiceCounter(req.invoiceNumber))).up()
     .up()
     .ele('fu:InvoiceAmount').txt(req.invoiceAmount).up()
     .ele('fu:PaymentAmount').txt(req.paymentAmount).up()
 
   // Schema: TaxesPerSeller holds one fu:VAT element per tax rate (no wrapper).
-  const taxes = invoice.ele('fu:TaxesPerSeller')
-  for (const tax of req.taxesPerSeller) {
-    taxes
-      .ele('fu:VAT')
-        .ele('fu:TaxRate').txt(tax.taxRate.toFixed(2)).up()
-        .ele('fu:TaxableAmount').txt(tax.taxableAmount.toFixed(2)).up()
-        .ele('fu:TaxAmount').txt(tax.taxAmount.toFixed(2)).up()
-      .up()
+  // Omitted entirely for companies that are not VAT payers.
+  if (req.taxesPerSeller.length > 0) {
+    const taxes = invoice.ele('fu:TaxesPerSeller')
+    for (const tax of req.taxesPerSeller) {
+      taxes
+        .ele('fu:VAT')
+          .ele('fu:TaxRate').txt(tax.taxRate.toFixed(2)).up()
+          .ele('fu:TaxableAmount').txt(tax.taxableAmount.toFixed(2)).up()
+          .ele('fu:TaxAmount').txt(tax.taxAmount.toFixed(2)).up()
+        .up()
+    }
   }
 
   // Schema sequence: OperatorTaxNumber?, ForeignOperator?, ProtectedID,
@@ -87,7 +91,7 @@ export function buildInvoiceRequestXml(req: FursInvoiceRequest, zoi: string): Bu
           .ele('fu:BusinessPremiseID').txt(req.referenceInvoice.referenceBusinessPremiseId).up()
           .ele('fu:ElectronicDeviceID').txt(req.referenceInvoice.referenceElectronicDeviceId).up()
           .ele('fu:InvoiceNumber')
-            .txt(extractInvoiceCounter(req.referenceInvoice.referenceInvoiceNumber))
+            .txt(String(req.referenceInvoice.referenceInvoiceCounter ?? extractInvoiceCounter(req.referenceInvoice.referenceInvoiceNumber)))
           .up()
         .up()
         .ele('fu:ReferenceInvoiceIssueDateTime')
@@ -116,10 +120,17 @@ export interface FursPremiseAddress {
   postalCode: string
 }
 
+export interface FursCadastralData {
+  cadastralNumber: string // katastrska občina
+  buildingNumber: string // številka stavbe
+  buildingSectionNumber: string // del stavbe
+}
+
 export interface BusinessPremiseRequest {
   taxNumber: string
   businessPremiseId: string
   address?: FursPremiseAddress
+  cadastralData?: FursCadastralData
   softwareSupplierTaxNumber: string
   validityDate: string // "YYYY-MM-DD"
 }
@@ -154,16 +165,14 @@ export function buildBusinessPremiseRequestXml(req: BusinessPremiseRequest): Bui
 
   const bpIdentifier = premise.ele('fu:BPIdentifier')
   if (req.address) {
+    // XSD requires positive integers for PropertyID fields (0/missing fails S001).
+    const cadastralData = req.cadastralData ?? { cadastralNumber: '1', buildingNumber: '1', buildingSectionNumber: '1' }
     const address = bpIdentifier
       .ele('fu:RealEstateBP')
-        // TODO: replace placeholder values with the premise's real cadastral
-        // data (katastrska občina / št. stavbe / del stavbe from the Slovenian
-        // real estate registry) before production registration. The XSD
-        // requires positive integers, so 0 fails schema validation (S001).
         .ele('fu:PropertyID')
-          .ele('fu:CadastralNumber').txt('1').up()
-          .ele('fu:BuildingNumber').txt('1').up()
-          .ele('fu:BuildingSectionNumber').txt('1').up()
+          .ele('fu:CadastralNumber').txt(cadastralData.cadastralNumber).up()
+          .ele('fu:BuildingNumber').txt(cadastralData.buildingNumber).up()
+          .ele('fu:BuildingSectionNumber').txt(cadastralData.buildingSectionNumber).up()
         .up()
         .ele('fu:Address')
     address.ele('fu:Street').txt(req.address.street).up()
@@ -202,8 +211,7 @@ export function zoiDateTimeToIso(zoiDateTime: string): string {
   return `${m[3]}-${m[2]}-${m[1]}T${m[4]}`
 }
 
-/** ISO 8601 without timezone suffix, local time. */
+/** ISO 8601 without timezone suffix, Slovenian local time. */
 export function isoLocalDateTime(date: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
+  return ljIsoLocal(date)
 }

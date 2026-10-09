@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase'
+import { ljYear } from '@/lib/time'
 
 export interface InvoiceFormatConfig {
   format: string
@@ -57,7 +58,7 @@ export async function generateInvoiceNumber(
   deviceId: string,
 ): Promise<{ invoiceNumber: string; counter: number }> {
   const supabase = createServiceClient()
-  const currentYear = new Date().getFullYear()
+  const currentYear = ljYear()
 
   const { data, error } = await supabase.rpc('increment_invoice_counter', {
     p_company_id: companyId,

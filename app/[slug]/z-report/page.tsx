@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Header from '@/components/layout/Header'
 import ZReportClient from '@/components/z-report/ZReportClient'
 import { computeZReportTotals, localDateString } from '@/lib/z-report/calculate'
@@ -7,16 +8,11 @@ import type { ZReport } from '@/types'
 
 export const revalidate = 0
 
-export default async function ZReportPage({ params }: { params: { slug: string } }) {
+export default async function ZReportPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   const today = localDateString()
 

@@ -17,7 +17,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
   const [premises, setPremises] = useState(initialPremises)
   const [devices, setDevices] = useState(initialDevices)
 
-  const [newPremise, setNewPremise] = useState({ premise_id: '', address: '', house_number: '', house_number_additional: '', city: '', postal_code: '', premise_type: 'premises' })
+  const [newPremise, setNewPremise] = useState({ premise_id: '', address: '', house_number: '', house_number_additional: '', city: '', postal_code: '', cadastral_number: '', building_number: '', building_section_number: '', premise_type: 'premises' })
   const [newDevice, setNewDevice] = useState({ device_id: '', premise_id: initialPremises[0]?.id ?? '' })
   const [addingPremise, setAddingPremise] = useState(false)
   const [addingDevice, setAddingDevice] = useState(false)
@@ -26,6 +26,11 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
 
   async function savePremise() {
     if (!newPremise.premise_id) { setError('Vnesite oznako prostora'); return }
+    // FURS: BusinessPremiseID / ElectronicDeviceID are 1-20 letters or digits.
+    if (!/^[A-Za-z0-9]{1,20}$/.test(newPremise.premise_id)) {
+      setError('Oznaka prostora sme vsebovati le črke in številke (največ 20 znakov, brez presledkov)')
+      return
+    }
     if (newPremise.premise_type !== 'movable' && !newPremise.house_number) {
       setError('Vnesite hišno številko (zahteva FURS)')
       return
@@ -38,6 +43,9 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
         company_id: companyId,
         ...newPremise,
         house_number_additional: newPremise.house_number_additional || null,
+        cadastral_number: newPremise.cadastral_number || null,
+        building_number: newPremise.building_number || null,
+        building_section_number: newPremise.building_section_number || null,
       })
       .select()
       .single()
@@ -50,12 +58,16 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
       setNewDevice((d) => ({ ...d, premise_id: d.premise_id || updated[0].id }))
       return updated
     })
-    setNewPremise({ premise_id: '', address: '', house_number: '', house_number_additional: '', city: '', postal_code: '', premise_type: 'premises' })
+    setNewPremise({ premise_id: '', address: '', house_number: '', house_number_additional: '', city: '', postal_code: '', cadastral_number: '', building_number: '', building_section_number: '', premise_type: 'premises' })
     setAddingPremise(false)
   }
 
   async function saveDevice() {
     if (!newDevice.device_id || !newDevice.premise_id) { setError('Izpolnite podatke naprave'); return }
+    if (!/^[A-Za-z0-9]{1,20}$/.test(newDevice.device_id)) {
+      setError('Oznaka naprave sme vsebovati le črke in številke (največ 20 znakov, brez presledkov)')
+      return
+    }
     setAddingDevice(true)
     setError('')
     const { data, error: err } = await supabase
@@ -188,6 +200,29 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
           <div className="grid grid-cols-2 gap-3">
             <Input label="Mesto" value={newPremise.city} onChange={(e) => setNewPremise((p) => ({ ...p, city: e.target.value }))} placeholder="Ljubljana" />
             <Input label="Poštna" value={newPremise.postal_code} onChange={(e) => setNewPremise((p) => ({ ...p, postal_code: e.target.value }))} placeholder="1000" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 mb-2">Katastrski podatki (za FURS). Poiščite na e-prostor.gov.si</p>
+            <div className="grid grid-cols-3 gap-3">
+              <Input
+                label="Katastrska občina"
+                value={newPremise.cadastral_number}
+                onChange={(e) => setNewPremise((p) => ({ ...p, cadastral_number: e.target.value.replace(/[^0-9]/g, '') }))}
+                placeholder="1938"
+              />
+              <Input
+                label="Številka stavbe"
+                value={newPremise.building_number}
+                onChange={(e) => setNewPremise((p) => ({ ...p, building_number: e.target.value.replace(/[^0-9]/g, '') }))}
+                placeholder="2306"
+              />
+              <Input
+                label="Del stavbe"
+                value={newPremise.building_section_number}
+                onChange={(e) => setNewPremise((p) => ({ ...p, building_section_number: e.target.value.replace(/[^0-9]/g, '') }))}
+                placeholder="1"
+              />
+            </div>
           </div>
           <Button onClick={savePremise} loading={addingPremise} size="sm">Dodaj prostor</Button>
         </div>

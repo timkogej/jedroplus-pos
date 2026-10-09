@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
+import { getInvoiceLoyaltyDisplay } from '@/lib/loyalty/award'
+import { downloadStoredPdf } from '@/lib/invoice/storage'
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const auth = await requireInvoiceAccess(req, params.id)
     if ('response' in auth) return auth.response
@@ -21,6 +21,23 @@ export async function GET(
 
     if (error || !invoice) {
       return NextResponse.json({ error: 'Račun ni najden' }, { status: 404 })
+    }
+
+    // Prefer the PDF that was generated when the invoice was issued: it is exactly
+    // what the customer received (buyer company, currency, loyalty lines), which a
+    // regeneration from the stored row cannot reproduce.
+    if (invoice.pdf_url) {
+      try {
+        const buf = await downloadStoredPdf(supabase, 'invoices', invoice.pdf_url)
+        if (buf) {
+          return NextResponse.json({
+            base64: buf.toString('base64'),
+            filename: `Racun-${invoice.invoice_number}.pdf`,
+          })
+        }
+      } catch (e) {
+        console.warn('[pdf route] stored PDF unavailable, regenerating:', e)
+      }
     }
 
     const [
@@ -81,6 +98,12 @@ export async function GET(
       stornoOf = originalInv?.invoice_number
     }
 
+    const loyaltyDisplay = await getInvoiceLoyaltyDisplay(supabase, {
+      companyId: invoice.company_id,
+      invoiceId: invoice.id,
+      clientEmail: invoice.client_email,
+    }).catch(() => ({ redeemed: null, earned: null }))
+
     const pdfBuffer = await generateInvoicePdf({
       invoice,
       items: invoice.pos_invoice_items ?? [],
@@ -94,6 +117,8 @@ export async function GET(
       stornoOf,
       premiseCode: premiseData?.premise_id,
       deviceCode: deviceData?.device_id,
+      loyaltyRedeemed: loyaltyDisplay.redeemed ?? undefined,
+      loyaltyEarned: loyaltyDisplay.earned ?? undefined,
     })
 
     return NextResponse.json({

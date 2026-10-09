@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal'
 import InvoicePDF from '@/components/invoice/InvoicePDF'
 import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
+import { computeInvoiceTotals } from '@/lib/invoice/totals'
 import type { InvoiceFormData, InvoiceItemForm, PosPremise, PosDevice, PosSettings, PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
 
 interface InvoiceFormProps {
@@ -50,7 +51,9 @@ export default function InvoiceForm({
   companyData,
 }: InvoiceFormProps) {
   const router = useRouter()
-  const defaultVat = settings?.default_vat_rate ?? 22
+  // Companies that are not VAT payers issue invoices without VAT (0 %, no rate choice).
+  const vatExempt = settings?.is_vat_registered === false
+  const defaultVat = vatExempt ? 0 : settings?.default_vat_rate ?? 22
   const defaultCurrency = prefill?.currency || settings?.currency || 'EUR'
   const currencySymbol = defaultCurrency === 'EUR' ? '€' : defaultCurrency
 
@@ -68,7 +71,9 @@ export default function InvoiceForm({
   )
   const [paymentMethod, setPaymentMethod] = useState(prefill?.payment_method ?? 'cash')
   const [items, setItems] = useState<InvoiceItemForm[]>(
-    prefill?.items?.length ? prefill.items : [emptyItem(defaultVat)]
+    prefill?.items?.length
+      ? prefill.items.map((i) => (vatExempt ? { ...i, vat_rate: 0 } : i))
+      : [emptyItem(defaultVat)]
   )
   const [discountAmount, setDiscountAmount] = useState(prefill?.discount_amount ?? 0)
   const [discountType, setDiscountType] = useState<'%' | '€'>(
@@ -162,7 +167,8 @@ export default function InvoiceForm({
   const clampedPoints = Math.max(0, Math.min(pointsToRedeem, maxRedeemablePoints))
   const loyaltyDiscount = clampedPoints * loyaltyRedeemValue
   const total = Math.max(0, subtotal - loyaltyDiscount)
-  const vatAmount = total * (vatRate / (100 + vatRate))
+  // VAT summed per rate (mixed 22 % / 9.5 % items), same maths as the server.
+  const vatAmount = computeInvoiceTotals(items, discountValue, loyaltyDiscount).vatAmount
 
   function updateItem(index: number, field: keyof InvoiceItemForm, value: string | number) {
     setItems((prev) =>
@@ -192,18 +198,10 @@ export default function InvoiceForm({
 
     setLoading(true)
     try {
-      // Lock in any loyalty redemption first, then attach it to the invoice.
-      let loyaltyRedeemRecordId: string | null = null
+      // Points are redeemed by the server together with the invoice — if issuing
+      // fails, nothing is spent. We only describe the discount in the notes here.
       let finalNotes = notes
       if (clampedPoints > 0 && loyaltyEnabled) {
-        const redeemRes = await authFetch('/api/loyalty/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyId, clientEmail: clientEmail.trim(), pointsToRedeem: clampedPoints }),
-        })
-        const redeemData = await redeemRes.json()
-        if (!redeemRes.ok) throw new Error(redeemData.error || 'Napaka pri unovčenju točk')
-        loyaltyRedeemRecordId = redeemData.recordId
         const note = `Loyalty popust: -${loyaltyDiscount.toFixed(2)} ${currencySymbol} (${clampedPoints} točk)`
         finalNotes = finalNotes ? `${finalNotes}\n${note}` : note
       }
@@ -233,7 +231,7 @@ export default function InvoiceForm({
           items,
           notes: finalNotes,
           currency: defaultCurrency,
-          loyaltyRedeemRecordId,
+          loyaltyPoints: loyaltyEnabled ? clampedPoints : 0,
         }),
       })
       const data = await res.json()
@@ -256,10 +254,10 @@ export default function InvoiceForm({
           payment_method: paymentMethod as 'cash' | 'card' | 'transfer',
           eor: data.eor,
           zoi: data.zoi,
-          total,
-          subtotal,
-          vat_rate: vatRate,
-          vat_amount: vatAmount,
+          total: data.total ?? total,
+          subtotal: data.subtotal ?? subtotal,
+          vat_rate: data.vatRate ?? vatRate,
+          vat_amount: data.vatAmount ?? vatAmount,
           discount_amount: discountValue,
           discount_type: discountAmount > 0 ? discountType : null,
           notes: finalNotes || null,
@@ -297,7 +295,10 @@ export default function InvoiceForm({
     try {
       const res = await authFetch(`/api/invoices/${issuedInvoice.id}/pdf`)
       if (!res.ok) throw new Error('PDF generation failed')
-      const blob = await res.blob()
+      // The endpoint answers with JSON { base64, filename }, not the file itself.
+      const { base64 } = (await res.json()) as { base64: string }
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+      const blob = new Blob([bytes], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 30000)
@@ -447,7 +448,7 @@ export default function InvoiceForm({
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Postavke</h3>
           <button
             onClick={addItem}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-900 hover:text-[#6D5EF7] transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-900 hover:text-brand transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -498,11 +499,13 @@ export default function InvoiceForm({
                     value={item.unit_price}
                     onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
                   />
-                  <Select
-                    options={VAT_OPTIONS}
-                    value={String(item.vat_rate)}
-                    onChange={(e) => updateItem(index, 'vat_rate', parseFloat(e.target.value))}
-                  />
+                  {!vatExempt && (
+                    <Select
+                      options={VAT_OPTIONS}
+                      value={String(item.vat_rate)}
+                      onChange={(e) => updateItem(index, 'vat_rate', parseFloat(e.target.value))}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -537,12 +540,14 @@ export default function InvoiceForm({
                   />
                 </div>
                 <div className="col-span-2">
-                  <Select
-                    label={index === 0 ? 'DDV' : ''}
-                    options={VAT_OPTIONS}
-                    value={String(item.vat_rate)}
-                    onChange={(e) => updateItem(index, 'vat_rate', parseFloat(e.target.value))}
-                  />
+                  {!vatExempt && (
+                    <Select
+                      label={index === 0 ? 'DDV' : ''}
+                      options={VAT_OPTIONS}
+                      value={String(item.vat_rate)}
+                      onChange={(e) => updateItem(index, 'vat_rate', parseFloat(e.target.value))}
+                    />
+                  )}
                 </div>
                 <div className="col-span-1 flex justify-center pb-0.5">
                   <button
@@ -607,7 +612,7 @@ export default function InvoiceForm({
 
       {/* Loyalty redemption */}
       {loyaltyEnabled && loyaltyBalance > 0 && (
-        <div className="bg-white rounded-2xl border border-[#6D5EF7]/30 p-5">
+        <div className="bg-white rounded-2xl border border-brand/30 p-5">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-lg">🎁</span>
             <p className="text-sm font-semibold text-gray-900">
@@ -623,7 +628,7 @@ export default function InvoiceForm({
               step={1}
               value={clampedPoints}
               onChange={(e) => setPointsToRedeem(parseInt(e.target.value, 10) || 0)}
-              className="flex-1 accent-[#6D5EF7]"
+              className="flex-1 accent-brand"
             />
             <input
               type="number"
@@ -636,7 +641,7 @@ export default function InvoiceForm({
             <button
               type="button"
               onClick={() => setPointsToRedeem(maxRedeemablePoints)}
-              className="text-xs font-medium text-[#6D5EF7] hover:underline whitespace-nowrap"
+              className="text-xs font-medium text-brand hover:underline whitespace-nowrap"
             >
               Uporabi vse
             </button>
@@ -658,7 +663,7 @@ export default function InvoiceForm({
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Cena brez DDV</span>
+            <span className="text-gray-600">{vatExempt ? 'Vmesna vsota' : 'Vmesna vsota (z DDV)'}</span>
             <span className="text-gray-900 font-medium">{itemsTotal.toFixed(2)} {currencySymbol}</span>
           </div>
           {discountValue > 0 && (
@@ -673,12 +678,16 @@ export default function InvoiceForm({
               <span className="text-green-700 font-medium">-{loyaltyDiscount.toFixed(2)} {currencySymbol}</span>
             </div>
           )}
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">DDV ({vatRate}%)</span>
-            <span className="text-gray-900 font-medium">{vatAmount.toFixed(2)} {currencySymbol}</span>
-          </div>
+          {vatExempt ? (
+            <p className="text-xs text-gray-500">DDV ni obračunan (1. odst. 94. člena ZDDV-1).</p>
+          ) : (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Od tega DDV</span>
+              <span className="text-gray-700">{vatAmount.toFixed(2)} {currencySymbol}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center border-t border-gray-100 pt-3 mt-1">
-            <span className="text-sm font-semibold text-gray-900">Skupaj z DDV</span>
+            <span className="text-sm font-semibold text-gray-900">{vatExempt ? 'Skupaj' : 'Skupaj z DDV'}</span>
             <span className="text-xl font-semibold gradient-text">{total.toFixed(2)} {currencySymbol}</span>
           </div>
         </div>
@@ -789,7 +798,7 @@ export default function InvoiceForm({
           <div className="grid grid-cols-1 gap-2">
             <button
               onClick={() => handlePrintFormat('a4')}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-[#6D5EF7] hover:bg-purple-50 transition-colors text-left"
+              className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-brand hover:bg-purple-50 transition-colors text-left"
             >
               <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -803,7 +812,7 @@ export default function InvoiceForm({
             </button>
             <button
               onClick={() => handlePrintFormat('thermal')}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-[#6D5EF7] hover:bg-purple-50 transition-colors text-left"
+              className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-brand hover:bg-purple-50 transition-colors text-left"
             >
               <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

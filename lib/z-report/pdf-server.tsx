@@ -47,6 +47,8 @@ function fmt(n: number, currency = 'EUR'): string {
   return `${n.toFixed(2)} ${symbol}`
 }
 
+import { ljParts } from '@/lib/time'
+
 function formatDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-')
   if (y && m && d) return `${d}.${m}.${y}`
@@ -55,14 +57,9 @@ function formatDate(dateStr: string): string {
 
 function formatDateTime(iso: string): string {
   try {
-    const dt = new Date(iso)
-    const day = String(dt.getDate()).padStart(2, '0')
-    const month = String(dt.getMonth() + 1).padStart(2, '0')
-    const year = dt.getFullYear()
-    const hh = String(dt.getHours()).padStart(2, '0')
-    const mm = String(dt.getMinutes()).padStart(2, '0')
-    const ss = String(dt.getSeconds()).padStart(2, '0')
-    return `${day}.${month}.${year} ${hh}:${mm}:${ss}`
+    const p = ljParts(new Date(iso))
+    const t = (n: number) => String(n).padStart(2, '0')
+    return `${t(p.day)}.${t(p.month)}.${p.year} ${t(p.hour)}:${t(p.minute)}:${t(p.second)}`
   } catch {
     return iso
   }

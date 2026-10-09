@@ -1,8 +1,11 @@
 import { randomBytes, randomUUID } from 'crypto'
+import { pdfStorageKey } from '@/lib/invoice/storage'
+import { resolveStrankeId } from '@/lib/loyalty/client'
 import { createServiceClient } from '@/lib/supabase'
 import { confirmInvoiceWithFurs } from '@/lib/furs/api'
 import { buildFursTaxes } from '@/lib/furs/taxes'
 import { formatDateForZoi } from '@/lib/furs/zoi'
+import { ljDateString } from '@/lib/time'
 import { FursError, type FursInvoiceRequest } from '@/lib/furs/types'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
@@ -46,6 +49,10 @@ export interface CreateInvoiceInput {
   // existed — it gets linked to the new invoice so PDF/email can show it.
   clientId?: string | null
   loyaltyRedeemRecordId?: string | null
+  // Points redeemed on THIS invoice. Booked in the ledger only after the invoice
+  // exists, so a failed issue (FURS, closed day, ...) never burns the points.
+  loyaltyPoints?: number
+  loyaltyDiscount?: number
 }
 
 /** Validation/business error that maps to an HTTP 400 in the API route. */
@@ -99,6 +106,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     stripePaymentIntentId,
     clientId,
     loyaltyRedeemRecordId,
+    loyaltyPoints = 0,
   } = input
 
   const supabase = createServiceClient()
@@ -106,7 +114,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
   const [{ data: settings }, { data: premise }, { data: device }] = await Promise.all([
     supabase
       .from('pos_settings')
-      .select('invoice_prefix, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, furs_environment')
+      .select('invoice_prefix, invoice_format, invoice_separator, invoice_number_length, invoice_year_format, furs_environment, is_vat_registered')
       .eq('company_id', companyId)
       .single(),
     supabase.from('pos_premises').select('premise_id, address, city, postal_code').eq('id', premiseId).single(),
@@ -127,21 +135,21 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     yearFormat:   (settings?.invoice_year_format   ?? 'full') as 'full' | 'short',
   }
 
-  const { invoiceNumber } = await generateInvoiceNumber(companyId, formatConfig, premise.premise_id, device.device_id)
-  const issueDate = new Date()
-
   // A day that's already been closed with a Z-report is locked — no new invoices
-  // may be added for it (ZDavPR daily-closing integrity).
-  const issueDateStr = `${issueDate.getFullYear()}-${String(issueDate.getMonth() + 1).padStart(2, '0')}-${String(issueDate.getDate()).padStart(2, '0')}`
+  // may be added for it (ZDavPR daily-closing integrity). Checked BEFORE a
+  // number is drawn so a rejected attempt doesn't burn a sequence number.
+  const issueDate = new Date()
   const { data: closedDay } = await supabase
     .from('pos_z_reports')
     .select('id')
     .eq('company_id', companyId)
-    .eq('report_date', issueDateStr)
+    .eq('report_date', ljDateString(issueDate))
     .maybeSingle()
   if (closedDay) {
     throw new InvoiceValidationError('Blagajna za ta dan je že zaključena (Z-poročilo). Računov ni mogoče dodajati.')
   }
+
+  const { invoiceNumber, counter: invoiceCounter } = await generateInvoiceNumber(companyId, formatConfig, premise.premise_id, device.device_id)
 
   const { data: certRow } = await supabase
     .from('pos_certificates')
@@ -169,11 +177,12 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       taxNumber: certRow.tax_number,
       issueDateTime: formatDateForZoi(issueDate),
       invoiceNumber,
+      invoiceCounter,
       businessPremiseId: premise.premise_id,
       electronicDeviceId: device.device_id,
       invoiceAmount: total.toFixed(2),
       paymentAmount: total.toFixed(2),
-      taxesPerSeller: buildFursTaxes(items, total),
+      taxesPerSeller: buildFursTaxes(items, total, settings?.is_vat_registered !== false),
     }
 
     try {
@@ -205,6 +214,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       premise_id: premiseId,
       device_id: deviceId,
       invoice_number: invoiceNumber,
+      invoice_counter: invoiceCounter,
       invoice_date: issueDate.toISOString(),
       client_name: buyer.name || null,
       client_email: buyer.email || null,
@@ -237,17 +247,24 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     throw new Error(invoiceError.message)
   }
 
-  await supabase.from('pos_invoice_items').insert(
-    items.map((item) => ({
-      invoice_id: invoice.id,
-      description: item.description,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      vat_rate: item.vat_rate,
-      vat_amount: (item.quantity * item.unit_price) * (item.vat_rate / (100 + item.vat_rate)),
-      total: item.quantity * item.unit_price,
-    }))
-  )
+  // The invoice is already fiscalized (and immutable), so a failed items insert
+  // can't be rolled back — retry once, then shout loudly so it gets repaired.
+  const itemRows = items.map((item) => ({
+    invoice_id: invoice.id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    vat_rate: item.vat_rate,
+    vat_amount: (item.quantity * item.unit_price) * (item.vat_rate / (100 + item.vat_rate)),
+    total: item.quantity * item.unit_price,
+  }))
+  let { error: itemsError } = await supabase.from('pos_invoice_items').insert(itemRows)
+  if (itemsError) {
+    ;({ error: itemsError } = await supabase.from('pos_invoice_items').insert(itemRows))
+  }
+  if (itemsError) {
+    console.error(`[createInvoice] CRITICAL: items insert failed for invoice ${invoiceNumber} (${invoice.id}):`, itemsError.message)
+  }
 
   if (appointmentId) {
     const { error: terminiError } = await supabase
@@ -267,6 +284,22 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
   // Loyalty: link any pre-locked redemption to this invoice, then award earned
   // points. Non-blocking — never let loyalty bookkeeping fail invoice issuance.
   try {
+    if (loyaltyPoints > 0 && buyer.email) {
+      // The invoice is already fiscalized and the discount granted, so the
+      // ledger must record it even if a parallel redemption made the balance
+      // short (p_force) — worst case the balance floors at 0.
+      const { error: redeemErr } = await supabase.rpc('loyalty_redeem', {
+        p_company: companyId,
+        p_email: buyer.email,
+        p_points: loyaltyPoints,
+        p_invoice: invoice.id,
+        p_description: `Unovceno pri racunu ${invoiceNumber}`,
+        p_force: true,
+      })
+      if (redeemErr) {
+        console.error(`[createInvoice] CRITICAL: redeeming ${loyaltyPoints} points for ${invoiceNumber} failed:`, redeemErr.message)
+      }
+    }
     if (loyaltyRedeemRecordId) {
       await supabase
         .from('pos_loyalty_points')
@@ -278,7 +311,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     await awardPointsForInvoice(supabase, {
       companyId,
       clientEmail: buyer.email,
-      clientId,
+      clientId: clientId ?? (await resolveStrankeId(supabase, companyId, buyer.email)),
       invoiceId: invoice.id,
       invoiceNumber,
       total,
@@ -348,7 +381,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       loyaltyEarned: loyaltyDisplay.earned ?? undefined,
     })
 
-    const storageKey = `${companyId}/${invoiceNumber}.pdf`
+    const storageKey = pdfStorageKey(companyId, invoiceNumber)
     const { error: uploadErr } = await supabase.storage
       .from('invoices')
       .upload(storageKey, pdfBuffer, { contentType: 'application/pdf', upsert: true })

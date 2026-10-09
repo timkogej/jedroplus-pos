@@ -104,6 +104,7 @@ export async function reversePointsForStorno(
 ): Promise<void> {
   const { companyId, originalInvoiceId, originalInvoiceNumber } = params
 
+  // 1. Take back points that were earned on the stornoed invoice.
   const { data: earned } = await supabase
     .from('pos_loyalty_points')
     .select('id, client_email, client_id, points')
@@ -112,28 +113,64 @@ export async function reversePointsForStorno(
     .eq('type', 'earned')
     .maybeSingle()
 
-  if (!earned || earned.points <= 0) return
+  if (earned && earned.points > 0) {
+    const { data: reversal } = await supabase
+      .from('pos_loyalty_points')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('invoice_id', originalInvoiceId)
+      .eq('type', 'redeemed')
+      .ilike('description', 'Odbitek zaradi storna%')
+      .maybeSingle()
 
-  // Already reversed? Look for an existing storno-reversal redeemed row.
-  const { data: reversal } = await supabase
+    if (!reversal) {
+      await supabase.from('pos_loyalty_points').insert({
+        company_id: companyId,
+        client_id: earned.client_id ?? null,
+        client_email: earned.client_email,
+        type: 'redeemed',
+        points: -Math.abs(earned.points),
+        invoice_id: originalInvoiceId,
+        description: `Odbitek zaradi storna racuna ${originalInvoiceNumber}`,
+      })
+    }
+  }
+
+  // 2. Give back points the buyer spent as a discount on that invoice — the
+  //    discount is void now, so the points must not stay burned.
+  const { data: spentRows } = await supabase
     .from('pos_loyalty_points')
-    .select('id')
+    .select('client_email, client_id, points, description')
     .eq('company_id', companyId)
     .eq('invoice_id', originalInvoiceId)
     .eq('type', 'redeemed')
-    .ilike('description', 'Odbitek zaradi storna%')
-    .maybeSingle()
-  if (reversal) return
+    .lt('points', 0)
 
-  await supabase.from('pos_loyalty_points').insert({
-    company_id: companyId,
-    client_id: earned.client_id ?? null,
-    client_email: earned.client_email,
-    type: 'redeemed',
-    points: -Math.abs(earned.points),
-    invoice_id: originalInvoiceId,
-    description: `Odbitek zaradi storna racuna ${originalInvoiceNumber}`,
-  })
+  const spent = (spentRows ?? []).filter((r) => !/^Odbitek zaradi storna/i.test(r.description ?? ''))
+  const spentPoints = spent.reduce((sum, r) => sum + Math.abs(r.points as number), 0)
+
+  if (spentPoints > 0) {
+    const { data: refund } = await supabase
+      .from('pos_loyalty_points')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('invoice_id', originalInvoiceId)
+      .eq('type', 'adjustment')
+      .ilike('description', 'Vrnjeno zaradi storna%')
+      .maybeSingle()
+
+    if (!refund) {
+      await supabase.from('pos_loyalty_points').insert({
+        company_id: companyId,
+        client_id: spent[0].client_id ?? null,
+        client_email: spent[0].client_email,
+        type: 'adjustment',
+        points: spentPoints,
+        invoice_id: originalInvoiceId,
+        description: `Vrnjeno zaradi storna racuna ${originalInvoiceNumber}`,
+      })
+    }
+  }
 }
 
 export interface InvoiceLoyaltyDisplay {

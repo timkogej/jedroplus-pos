@@ -37,6 +37,8 @@ function formatPayment(method: string): string {
   return rs(({ cash: 'Gotovina', card: 'Kartica', transfer: 'Bancno nakazilo', online: 'Spletno placilo' } as Record<string, string>)[method] ?? method)
 }
 
+import { ljParts } from '@/lib/time'
+
 function fmt(n: number, currency = 'EUR'): string {
   const symbol = currency === 'EUR' ? '€' : currency
   return `${n.toFixed(2)} ${symbol}`
@@ -44,13 +46,9 @@ function fmt(n: number, currency = 'EUR'): string {
 
 function formatDateTime(dateStr: string): string {
   try {
-    const d = new Date(dateStr)
-    const day = String(d.getDate()).padStart(2, '0')
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const year = d.getFullYear()
-    const hour = String(d.getHours()).padStart(2, '0')
-    const min = String(d.getMinutes()).padStart(2, '0')
-    return `${day}.${month}.${year} ob ${hour}:${min}`
+    const p = ljParts(new Date(dateStr))
+    const t = (n: number) => String(n).padStart(2, '0')
+    return `${t(p.day)}.${t(p.month)}.${p.year} ob ${t(p.hour)}:${t(p.minute)}`
   } catch {
     return dateStr
   }

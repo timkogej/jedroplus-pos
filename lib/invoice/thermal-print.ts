@@ -15,6 +15,20 @@ const PAYMENT_LABELS: Record<string, string> = {
   online: 'Spletno plačilo',
 }
 
+/**
+ * Everything interpolated into the receipt HTML is escaped. Customer names come
+ * from the public booking system, so an unescaped name like <img onerror=…> would
+ * run script inside the print window (same origin as the logged-in POS).
+ */
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function eur(n: number): string {
   return n.toFixed(2) + ' EUR'
 }
@@ -24,7 +38,8 @@ function shortenCode(code: string | null | undefined, len = 20): string {
   return code.length > len ? code.slice(0, len) + '…' : code
 }
 
-export function printThermal(opts: ThermalPrintOptions): void {
+export async function printThermal(opts: ThermalPrintOptions): Promise<void> {
+  const e = escapeHtml
   const { invoice, companyName, companyAddress, companyContact, taxNumber } = opts
   const items = invoice.pos_invoice_items ?? []
   const isDemo = (invoice.furs_response as { demo?: boolean } | null)?.demo === true
@@ -38,13 +53,24 @@ export function printThermal(opts: ThermalPrintOptions): void {
     ? `https://blagajne.fu.gov.si/0/${invoice.zoi}`
     : invoice.eor ?? invoice.invoice_number
 
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrContent)}`
+  // Generated locally: no third party sees the ZOI, and it works offline.
+  let qrUrl = ''
+  try {
+    const QRCode = (await import('qrcode')).default
+    qrUrl = await QRCode.toDataURL(qrContent, { type: 'image/png', width: 150, margin: 1 })
+  } catch {
+    // receipt still prints without the QR code
+  }
 
+  // Item rows hold pre-discount prices; scale to what was actually charged.
+  const itemsGross = items.reduce((sum, i) => sum + i.total, 0)
+  const scale = itemsGross !== 0 ? invoice.total / itemsGross : 1
   const vatByRate: Record<number, { base: number; vat: number }> = {}
   items.forEach((item) => {
     const rate = item.vat_rate
-    const itemVat = item.vat_amount ?? (item.total * rate / (100 + rate))
-    const itemBase = item.total - itemVat
+    const itemTotal = item.total * scale
+    const itemVat = itemTotal * rate / (100 + rate)
+    const itemBase = itemTotal - itemVat
     if (!vatByRate[rate]) vatByRate[rate] = { base: 0, vat: 0 }
     vatByRate[rate].base += itemBase
     vatByRate[rate].vat += itemVat
@@ -54,7 +80,7 @@ export function printThermal(opts: ThermalPrintOptions): void {
 <html lang="sl">
 <head>
 <meta charset="UTF-8">
-<title>Račun ${invoice.invoice_number}</title>
+<title>Račun ${e(invoice.invoice_number)}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -90,28 +116,28 @@ export function printThermal(opts: ThermalPrintOptions): void {
 </style>
 </head>
 <body>
-  <div class="center bold" style="font-size:13px;">${companyName}</div>
-  ${companyAddress ? `<div class="center small">${companyAddress}</div>` : ''}
-  ${companyContact ? `<div class="center small">${companyContact}</div>` : ''}
-  ${taxNumber ? `<div class="center small">ID za DDV: ${taxNumber}</div>` : ''}
+  <div class="center bold" style="font-size:13px;">${e(companyName)}</div>
+  ${companyAddress ? `<div class="center small">${e(companyAddress)}</div>` : ''}
+  ${companyContact ? `<div class="center small">${e(companyContact)}</div>` : ''}
+  ${taxNumber ? `<div class="center small">ID za DDV: ${e(taxNumber)}</div>` : ''}
 
   ${isDemo ? `<div class="warning test">⚠ TESTNI NAČIN ⚠</div>` : ''}
 
   <div class="line"></div>
 
   <div class="center bold">RAČUN</div>
-  <div class="row"><span>Številka:</span><span class="bold">${invoice.invoice_number}</span></div>
-  <div class="row"><span>Datum:</span><span>${datum}</span></div>
-  <div class="row"><span>Čas:</span><span>${cas}</span></div>
-  <div class="row"><span>Plačilo:</span><span>${PAYMENT_LABELS[invoice.payment_method] ?? invoice.payment_method}</span></div>
-  ${invoice.client_name ? `<div class="row"><span>Stranka:</span><span>${invoice.client_name}</span></div>` : ''}
+  <div class="row"><span>Številka:</span><span class="bold">${e(invoice.invoice_number)}</span></div>
+  <div class="row"><span>Datum:</span><span>${e(datum)}</span></div>
+  <div class="row"><span>Čas:</span><span>${e(cas)}</span></div>
+  <div class="row"><span>Plačilo:</span><span>${e(PAYMENT_LABELS[invoice.payment_method] ?? invoice.payment_method)}</span></div>
+  ${invoice.client_name ? `<div class="row"><span>Stranka:</span><span>${e(invoice.client_name)}</span></div>` : ''}
 
   <div class="line"></div>
 
   ${items.map((item) => `
-  <div class="bold">${item.description}</div>
+  <div class="bold">${e(item.description)}</div>
   <div class="row">
-    <span class="small">${item.quantity} × ${item.unit_price.toFixed(2)} · DDV ${item.vat_rate}%</span>
+    <span class="small">${e(item.quantity)} × ${item.unit_price.toFixed(2)} · DDV ${e(item.vat_rate)}%</span>
     <span>${item.total.toFixed(2)} EUR</span>
   </div>`).join('')}
 
@@ -127,14 +153,14 @@ export function printThermal(opts: ThermalPrintOptions): void {
 
   <div class="line"></div>
 
-  ${invoice.zoi ? `<div class="small">ZOI: ${shortenCode(invoice.zoi, 8)}</div>` : ''}
-  ${invoice.eor ? `<div class="small">EOR: ${shortenCode(invoice.eor, 8)}</div>` : ''}
+  ${invoice.zoi ? `<div class="small">ZOI: ${e(shortenCode(invoice.zoi, 8))}</div>` : ''}
+  ${invoice.eor ? `<div class="small">EOR: ${e(shortenCode(invoice.eor, 8))}</div>` : ''}
 
-  <img class="qr" src="${qrUrl}" alt="QR" />
+  ${qrUrl ? `<img class="qr" src="${qrUrl}" alt="QR" />` : ''}
 
   <div class="line"></div>
 
-  <div class="center small">Račun potrjen pri FURS</div>
+  <div class="center small">${invoice.eor ? 'Račun potrjen pri FURS' : 'Potrditev pri FURS je v teku'}</div>
   ${isDemo ? `<div class="center bold small test">** TESTNI NAČIN **</div>` : ''}
   <div class="center bold" style="margin-top:4px;">Hvala za obisk!</div>
   <div class="center small" style="margin-top:4px;">Natisnjeno: ${printedAt}</div>
@@ -153,7 +179,7 @@ export function printThermal(opts: ThermalPrintOptions): void {
   popup.focus()
   setTimeout(() => {
     popup.print()
-  }, 1500)
+  }, 500)
 }
 
 export function printA4(slug: string, invoiceId: string): void {

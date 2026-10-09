@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { pdfStorageKey } from '@/lib/invoice/storage'
 import { createServiceClient } from '@/lib/supabase'
 import { sendInvoiceEmail } from '@/lib/invoice/email'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
 import { getInvoiceLoyaltyDisplay } from '@/lib/loyalty/award'
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const auth = await requireInvoiceAccess(req, params.id)
     if ('response' in auth) return auth.response
@@ -107,7 +106,7 @@ export async function POST(
 
     if (pdfBuffer) {
       try {
-        const storageKey = `${invoice.company_id}/${invoice.invoice_number}.pdf`
+        const storageKey = pdfStorageKey(invoice.company_id, invoice.invoice_number)
         const { error: uploadErr } = await supabase.storage
           .from('invoices')
           .upload(storageKey, pdfBuffer, { contentType: 'application/pdf', upsert: true })

@@ -5,7 +5,8 @@ import { loadZReportPdfContext } from '@/lib/z-report/context'
 import { generateZReportPdf } from '@/lib/z-report/pdf-server'
 import { formatReportLabel } from '@/lib/z-report/calculate'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const auth = await authenticateRequest(req)
     if ('response' in auth) return auth.response

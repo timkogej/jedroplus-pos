@@ -1,5 +1,7 @@
 import forge from 'node-forge'
 import type { FursInvoiceRequest } from './types'
+import { ljZoiDateTime } from '@/lib/time'
+import { extractInvoiceCounter } from './xml'
 
 /**
  * ZOI (zaščitna oznaka izdajatelja računa) per ZDavPR:
@@ -20,25 +22,23 @@ export function calculateZoi(input: string, privateKeyPem: string): string {
   return md5.digest().toHex()
 }
 
-/** ZOI input: taxNumber + issueDateTime + invoiceNumber + premise + device + amount. */
+/**
+ * ZOI input: taxNumber + issueDateTime + invoiceNumber + premise + device + amount.
+ * invoiceNumber here is the bare sequential counter (same value as
+ * fu:InvoiceNumber in the XML), NOT the formatted number printed on the receipt.
+ */
 export function buildZoiInput(req: FursInvoiceRequest): string {
   return [
     req.taxNumber,
     req.issueDateTime,
-    req.invoiceNumber,
+    req.invoiceCounter ?? extractInvoiceCounter(req.invoiceNumber),
     req.businessPremiseId,
     req.electronicDeviceId,
     req.invoiceAmount,
   ].join('')
 }
 
-/** Formats a Date as "dd.MM.yyyy HH:mm:ss" (local time), the ZOI datetime format. */
+/** Formats a Date as "dd.MM.yyyy HH:mm:ss" in Slovenian local time, the ZOI datetime format. */
 export function formatDateForZoi(date: Date): string {
-  const dd = String(date.getDate()).padStart(2, '0')
-  const MM = String(date.getMonth() + 1).padStart(2, '0')
-  const yyyy = date.getFullYear()
-  const HH = String(date.getHours()).padStart(2, '0')
-  const mm = String(date.getMinutes()).padStart(2, '0')
-  const ss = String(date.getSeconds()).padStart(2, '0')
-  return `${dd}.${MM}.${yyyy} ${HH}:${mm}:${ss}`
+  return ljZoiDateTime(date)
 }

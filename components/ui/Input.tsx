@@ -1,5 +1,5 @@
 'use client'
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -8,12 +8,19 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, className = '', ...props }, ref) => (
+  ({ label, error, hint, className = '', id, ...props }, ref) => {
+    const autoId = useId()
+    const inputId = id ?? autoId
+    const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
+    return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label className="text-sm font-medium text-gray-700">{label}</label>
+        <label htmlFor={inputId} className="text-sm font-medium text-gray-700">{label}</label>
       )}
       <input
+        id={inputId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
         ref={ref}
         className={`
           w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm text-gray-900
@@ -24,10 +31,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         `}
         {...props}
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      {hint && !error && <p className="text-xs text-gray-400">{hint}</p>}
+      {error && <p id={`${inputId}-error`} role="alert" className="text-xs text-red-500">{error}</p>}
+      {hint && !error && <p id={`${inputId}-hint`} className="text-xs text-gray-400">{hint}</p>}
     </div>
-  )
+    )
+  }
 )
 Input.displayName = 'Input'
 export default Input

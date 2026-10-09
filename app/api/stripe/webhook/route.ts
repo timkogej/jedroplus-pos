@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase'
-import { createInvoice, findExistingInvoice, DuplicateInvoiceError } from '@/lib/invoice/create-invoice'
+import {
+  createInvoice,
+  findExistingInvoice,
+  DuplicateInvoiceError,
+  InvoiceValidationError,
+} from '@/lib/invoice/create-invoice'
+import { computeInvoiceTotals } from '@/lib/invoice/totals'
+import { raiseAttention } from '@/lib/attention'
 
 // Stripe needs the RAW request body to verify the signature, so this route must
 // never run through a JSON body parser. In the App Router `await req.text()`
@@ -88,6 +95,10 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
         await handleSubscriptionEvent(event.type, event.data.object as Stripe.Subscription)
+        return NextResponse.json({ received: true })
+
+      case 'charge.refunded':
+        await handleChargeRefunded(event.data.object as Stripe.Charge)
         return NextResponse.json({ received: true })
 
       case 'invoice.payment_succeeded':
@@ -319,29 +330,32 @@ async function processBookingPayment(
       ? Number(termin['Final cena'])
       : Number(termin['Cena'] ?? 0)
 
-  // For a deposit, the invoice reflects the amount actually charged (the
-  // deposit) from metadata. For a full payment, use the final service price.
-  const depositCharged = Number(chargedAmount ?? 0)
-  const unitPrice = isDeposit && depositCharged > 0 ? depositCharged : finalPrice
-
+  // The invoice must equal what the customer actually paid (chargedAmount, set
+  // by the checkout route from Termini.payment_amount). For a deposit that is
+  // the deposit. For a full payment it can exceed the service price when an
+  // add-on was booked — the difference becomes its own line instead of being
+  // silently dropped from the fiscal invoice.
   const description = (termin['Storitev'] as string) || 'Storitev'
+  const paid = Number(chargedAmount ?? 0)
 
-  const items = [
-    {
-      description,
-      quantity: 1,
-      unit_price: unitPrice, // gross
-      vat_rate: vatRate,
-    },
-  ]
+  let items: Array<{ description: string; quantity: number; unit_price: number; vat_rate: number }>
+  if (paid > 0 && !isDeposit && paid > finalPrice + 0.005 && finalPrice > 0) {
+    items = [
+      { description, quantity: 1, unit_price: finalPrice, vat_rate: vatRate },
+      { description: 'Dodatek', quantity: 1, unit_price: Math.round((paid - finalPrice) * 100) / 100, vat_rate: vatRate },
+    ]
+  } else {
+    items = [
+      { description, quantity: 1, unit_price: paid > 0 ? paid : finalPrice, vat_rate: vatRate },
+    ]
+  }
 
-  // --- Amounts (mirror the InvoiceForm/route calc: VAT is included in gross)
-  // The charged/final price already reflects any discount, so we do not apply
-  // the Termini discount again here (it would double-count). Discount is 0.
-  const itemsTotal = items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0)
-  const subtotal = itemsTotal
-  const total = subtotal
-  const vatAmount = subtotal * (vatRate / (100 + vatRate))
+  // Amounts (VAT is included in the gross price). The charged price already
+  // reflects any discount, so no discount is applied again here.
+  const totals = computeInvoiceTotals(items, 0, 0)
+  const subtotal = totals.subtotal
+  const total = totals.total
+  const vatAmount = totals.vatAmount
 
   // --- 5. Buyer info from the Termini row ---------------------------------
   const buyer = {
@@ -383,6 +397,21 @@ async function processBookingPayment(
       console.log('[stripe/webhook] invoice already exists (unique violation), skipping:', appointmentId)
       return NextResponse.json({ received: true, alreadyProcessed: true })
     }
+    // A business rule blocked the invoice (e.g. the day is already closed with a
+    // Z-report, missing certificate/premise). Retrying can never succeed and the
+    // customer HAS paid — ack Stripe so it stops retrying, and put it in front of
+    // a human on the dashboard instead of looping forever.
+    if (err instanceof InvoiceValidationError) {
+      console.error('[stripe/webhook] invoice blocked for paid appointment', appointmentId, err.message)
+      await raiseAttention(supabase, {
+        companyId,
+        kind: 'online_invoice_failed',
+        reference: stripePaymentIntentId ?? `appointment:${appointmentId}`,
+        message: `Spletno plačilo (${total.toFixed(2)} ${currency}) je prejeto, računa pa ni bilo mogoče izdati: ${err.message}`,
+        details: { appointmentId, stripePaymentIntentId, total },
+      })
+      return NextResponse.json({ received: true, needsAttention: true })
+    }
     throw err
   }
 
@@ -401,4 +430,46 @@ async function processBookingPayment(
 
   // --- 8. Done ------------------------------------------------------------
   return NextResponse.json({ received: true })
+}
+
+// A Stripe refund does NOT automatically cancel the fiscal invoice — a storno
+// must be issued with FURS. That needs a person (amount, reason), so we flag it
+// on the dashboard rather than issuing one blindly.
+async function handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
+  const piId =
+    typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id ?? null
+  if (!piId) return
+
+  const supabase = createServiceClient()
+  const { data: invoice } = await supabase
+    .from('pos_invoices')
+    .select('id, company_id, invoice_number, status')
+    .eq('stripe_payment_intent_id', piId)
+    .neq('status', 'storno')
+    .maybeSingle()
+
+  let companyId = invoice?.company_id as string | undefined
+  if (!companyId) {
+    const pi = await stripe.paymentIntents.retrieve(piId)
+    companyId = pi.metadata?.companyId
+  }
+  if (!companyId) {
+    console.error('[stripe/webhook] charge.refunded without resolvable company, pi:', piId)
+    return
+  }
+
+  const refunded = (charge.amount_refunded / 100).toFixed(2)
+  const full = charge.amount_refunded >= charge.amount
+  const currency = charge.currency.toUpperCase()
+
+  await raiseAttention(supabase, {
+    companyId,
+    kind: 'refund_needs_storno',
+    reference: `${charge.id}:${charge.amount_refunded}`,
+    invoiceId: invoice?.id ?? null,
+    message: invoice
+      ? `Stripe vračilo ${refunded} ${currency} (${full ? 'polno' : 'delno'}) za račun ${invoice.invoice_number}. Izdajte storno račun.`
+      : `Stripe vračilo ${refunded} ${currency} za plačilo ${piId}, računa ni mogoče najti.`,
+    details: { chargeId: charge.id, paymentIntent: piId, amountRefunded: charge.amount_refunded, full },
+  })
 }

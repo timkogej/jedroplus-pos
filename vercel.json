@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/furs/retry",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/z-report/send-reminders",
-      "schedule": "0 22 * * *"
+      "schedule": "0 19 * * *"
     }
   ]
 }

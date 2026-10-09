@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { ljDateString, ljDayBounds } from '@/lib/time'
 
 /**
  * Aggregated daily totals for a Z-report (dnevni zaključek blagajne).
@@ -22,22 +23,17 @@ export interface ZReportTotals {
 
 /**
  * Start (inclusive) and end (exclusive) ISO timestamps spanning a single
- * calendar day in the server's local timezone, matching how the dashboard
+ * calendar day in Slovenian local time (Europe/Ljubljana), matching how the dashboard
  * buckets invoices by day.
  */
 export function dayBounds(reportDate: string): { start: string; end: string } {
-  const start = new Date(`${reportDate}T00:00:00`)
-  const end = new Date(start)
-  end.setDate(end.getDate() + 1)
+  const { start, end } = ljDayBounds(reportDate)
   return { start: start.toISOString(), end: end.toISOString() }
 }
 
-/** Today's date as YYYY-MM-DD in the server's local timezone. */
+/** Today's date as YYYY-MM-DD in Slovenian local time. */
 export function localDateString(d: Date = new Date()): string {
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return ljDateString(d)
 }
 
 /** Human label for a stored report: Z-YYYY-NNNN (e.g. Z-2026-0001). */
@@ -55,13 +51,15 @@ interface InvoiceRow {
   total: number | null
   payment_method: string | null
   status: string | null
+  is_storno?: boolean | null
   vat_rate: number | null
   vat_amount: number | null
   pos_invoice_items?: InvoiceItemRow[] | null
 }
 
 /** Revenue counts everything except cancellation (storno) and legacy cancels. */
-const isRevenue = (status: string | null) => status !== 'storno' && status !== 'cancelled'
+const isStornoRow = (r: InvoiceRow) => r.is_storno === true || r.status === 'storno'
+const isRevenue = (r: InvoiceRow) => !isStornoRow(r) && r.status !== 'cancelled'
 
 /**
  * Reads all of a company's invoices for `reportDate` and computes the Z-report
@@ -76,14 +74,14 @@ export async function computeZReportTotals(
 
   const { data } = await supabase
     .from('pos_invoices')
-    .select('total, payment_method, status, vat_rate, vat_amount, pos_invoice_items(vat_rate, vat_amount, total)')
+    .select('total, payment_method, status, is_storno, vat_rate, vat_amount, pos_invoice_items(vat_rate, vat_amount, total)')
     .eq('company_id', companyId)
     .gte('invoice_date', start)
     .lt('invoice_date', end)
 
   const rows = (data ?? []) as InvoiceRow[]
-  const revenueRows = rows.filter((r) => isRevenue(r.status))
-  const stornoRows = rows.filter((r) => r.status === 'storno')
+  const revenueRows = rows.filter(isRevenue)
+  const stornoRows = rows.filter(isStornoRow)
 
   const sumTotal = (arr: InvoiceRow[]) => arr.reduce((s, r) => s + (r.total ?? 0), 0)
   const byMethod = (method: string) =>
@@ -110,10 +108,15 @@ export async function computeZReportTotals(
   for (const r of revenueRows) {
     const items = r.pos_invoice_items ?? []
     if (items.length) {
+      // Item rows hold pre-discount gross prices. Scale them to what the
+      // invoice actually charged (manual discount / redeemed points), otherwise
+      // the VAT breakdown overstates revenue and VAT on discounted invoices.
+      const itemsGross = items.reduce((sum, it) => sum + (it.total ?? 0), 0)
+      const scale = itemsGross !== 0 && r.total != null ? r.total / itemsGross : 1
       for (const it of items) {
-        const itemTotal = it.total ?? 0
+        const itemTotal = (it.total ?? 0) * scale
         const rate = Number(it.vat_rate ?? 0)
-        const vat = it.vat_amount ?? (rate > 0 ? (itemTotal * rate) / (100 + rate) : 0)
+        const vat = rate > 0 ? (itemTotal * rate) / (100 + rate) : 0
         addToBucket(totals, rate, itemTotal - vat, vat)
       }
     } else {

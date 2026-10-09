@@ -49,6 +49,15 @@ export default function MobileNav({ slug }: MobileNavProps) {
       ),
     },
     {
+      href: `${base}/customers`,
+      label: 'Stranke',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 100-8 4 4 0 000 8zm6 0a3 3 0 100-6M3 9a3 3 0 106 0" />
+        </svg>
+      ),
+    },
+    {
       href: `${base}/z-report`,
       label: 'Z poročilo',
       icon: (
@@ -82,12 +91,12 @@ export default function MobileNav({ slug }: MobileNavProps) {
                   <span className="text-white block">{item.icon}</span>
                 </div>
               ) : (
-                <span className={`transition-colors ${isActive ? 'text-[#6D5EF7]' : 'text-gray-400'}`}>
+                <span className={`transition-colors ${isActive ? 'text-brand' : 'text-gray-400'}`}>
                   {item.icon}
                 </span>
               )}
               {!item.center && (
-                <span className={`text-[10px] transition-colors ${isActive ? 'text-[#6D5EF7] font-medium' : 'text-gray-400'}`}>
+                <span className={`text-[10px] transition-colors ${isActive ? 'text-brand font-medium' : 'text-gray-400'}`}>
                   {item.label}
                 </span>
               )}

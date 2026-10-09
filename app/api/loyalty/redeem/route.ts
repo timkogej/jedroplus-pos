@@ -39,49 +39,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Loyalty program ni omogočen' }, { status: 400 })
     }
 
-    const balance = await getPointsBalance(companyId!, clientEmail, supabase)
-    if (points > balance) {
-      return NextResponse.json(
-        { error: `Stranka nima dovolj točk (na voljo: ${balance})` },
-        { status: 400 }
-      )
-    }
-
-    // If an invoice number is provided/derivable, use it in the description.
+    // Atomic: lock + re-check balance + insert in one DB transaction, so two
+    // parallel requests can never spend the same points.
     let invoiceNumber: string | null = null
     if (invoiceId) {
       const { data: inv } = await supabase
         .from('pos_invoices')
         .select('invoice_number')
         .eq('id', invoiceId)
+        .eq('company_id', companyId!)
         .maybeSingle()
       invoiceNumber = inv?.invoice_number ?? null
     }
 
-    const { data: record, error } = await supabase
-      .from('pos_loyalty_points')
-      .insert({
-        company_id: companyId,
-        client_email: normalizeEmail(clientEmail),
-        type: 'redeemed',
-        points: -points,
-        invoice_id: invoiceId ?? null,
-        description: invoiceNumber
-          ? `Unovceno pri racunu ${invoiceNumber}`
-          : 'Unovceno (loyalty)',
-      })
-      .select('id')
-      .single()
+    const { data: recordId, error } = await supabase.rpc('loyalty_redeem', {
+      p_company: companyId,
+      p_email: normalizeEmail(clientEmail),
+      p_points: points,
+      p_invoice: invoiceNumber ? invoiceId : null,
+      p_description: invoiceNumber ? `Unovceno pri racunu ${invoiceNumber}` : 'Unovceno (loyalty)',
+    })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      const insufficient = /nima dovolj/i.test(error.message)
+      return NextResponse.json({ error: error.message }, { status: insufficient ? 400 : 500 })
     }
 
+    const balance = await getPointsBalance(companyId!, clientEmail, supabase)
+
     return NextResponse.json({
-      recordId: record.id,
+      recordId,
       points,
       discountAmount: points * settings.loyalty_redeem_value,
-      newBalance: balance - points,
+      newBalance: balance,
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error'

@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Header from '@/components/layout/Header'
 import InvoiceForm from '@/components/invoice/InvoiceForm'
 import type { PosPremise, PosDevice, PosSettings, PosCompanyData, InvoiceItemForm } from '@/types'
@@ -31,22 +32,17 @@ interface SearchParams {
   service3Id?: string
 }
 
-export default async function NewInvoicePage({
-  params,
-  searchParams,
-}: {
-  params: { slug: string }
-  searchParams: SearchParams
-}) {
+export default async function NewInvoicePage(
+  props: {
+    params: Promise<{ slug: string }>
+    searchParams: Promise<SearchParams>
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   const [{ data: settings }, { data: premises }, { data: devices }, { data: companyData }] = await Promise.all([
     supabase.from('pos_settings').select('*').eq('company_id', company.id).single(),
@@ -85,12 +81,6 @@ export default async function NewInvoicePage({
     const service3Id = termin?.['ID storitve 3'] || searchParams.service3Id
     const appointmentCurrency = termin?.['Valuta'] || currency
 
-    console.log('[Invoice] Fetching appointment', searchParams.appointmentId, {
-      service1Id,
-      service2Id,
-      service3Id,
-      strankaId,
-    })
 
     // Resolve client and all three services in parallel
     const [strankaResult, svc1Result, svc2Result, svc3Result] = await Promise.all([
@@ -112,12 +102,6 @@ export default async function NewInvoicePage({
         : Promise.resolve({ data: null }),
     ])
 
-    console.log('[Invoice] Lookup results:', {
-      svc1: svc1Result.data,
-      svc2: svc2Result.data,
-      svc3: svc3Result.data,
-      stranka: strankaResult.data,
-    })
 
     if (strankaResult.data) {
       const stranka = strankaResult.data

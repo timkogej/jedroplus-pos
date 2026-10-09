@@ -30,13 +30,10 @@ export async function POST(req: NextRequest) {
     const supabase = createServiceClient()
 
     const authHeader = req.headers.get('Authorization')
-    console.log('1. Auth header present:', !!authHeader)
 
     const token = authHeader?.replace('Bearer ', '')
-    console.log('2. Token present:', !!token)
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token || '')
-    console.log('3. User:', user?.id, 'Auth error:', authError?.message)
 
     if (!user) {
       return NextResponse.json({ error: 'No user found' }, { status: 401 })
@@ -47,7 +44,6 @@ export async function POST(req: NextRequest) {
       .select('default_company_id')
       .eq('id', user.id)
       .single()
-    console.log('4. Profile:', profile, 'Profile error:', profileError?.message)
 
     if (!profile?.default_company_id) {
       return NextResponse.json({ error: 'No company in profile' }, { status: 404 })
@@ -58,11 +54,9 @@ export async function POST(req: NextRequest) {
       .select('id, slug')
       .eq('id', profile.default_company_id)
       .single()
-    console.log('5. Company:', company, 'Company error:', companyError?.message)
 
     // ---------------------------------------------------------------------
     const { plan, interval } = await req.json()
-    console.log('[subscriptions/create] request', { plan, interval })
 
     if (!isValidPlan(plan) || !isValidInterval(interval)) {
       console.error('[subscriptions/create] invalid plan/interval', { plan, interval })
@@ -104,8 +98,16 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json({ error: 'Naročnina je že aktivna' }, { status: 409 })
     }
+    // A past-due subscription still exists in Stripe and keeps retrying — a new
+    // checkout would bill the customer twice. They must fix the card instead.
+    if (existingSub?.stripe_subscription_id && existingSub.status === 'past_due') {
+      return NextResponse.json(
+        { error: 'Plačilo naročnine ni uspelo. Posodobite plačilno sredstvo v upravljanju naročnine.' },
+        { status: 409 }
+      )
+    }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin
 
     // --- Create the Checkout Session (subscription mode, no trial) ---------
     const session = await stripe.checkout.sessions.create({

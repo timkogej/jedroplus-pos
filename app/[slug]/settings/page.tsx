@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 
@@ -118,16 +119,11 @@ const sections = [
   },
 ]
 
-export default async function SettingsPage({ params }: { params: { slug: string } }) {
+export default async function SettingsPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   return (
     <div className="flex flex-col min-h-screen">

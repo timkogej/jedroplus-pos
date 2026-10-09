@@ -4,6 +4,9 @@ import { encrypt } from '@/lib/crypto'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import { parseP12 } from '@/lib/furs/certificate'
 
+// A .p12 is a few KB; refuse anything big before reading it into memory.
+const MAX_P12_BYTES = 256 * 1024
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
@@ -17,6 +20,10 @@ export async function POST(req: NextRequest) {
 
     const auth = await requireCompanyAccess(req, companyId)
     if ('response' in auth) return auth.response
+
+    if (typeof file.size !== 'number' || file.size > MAX_P12_BYTES) {
+      return NextResponse.json({ error: 'Datoteka je prevelika za certifikat (.p12)' }, { status: 400 })
+    }
 
     const arrayBuffer = await file.arrayBuffer()
     const p12Buffer = Buffer.from(arrayBuffer)
@@ -43,13 +50,9 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceClient()
 
-    // Deactivate old certificates
-    await supabase
-      .from('pos_certificates')
-      .update({ is_active: false })
-      .eq('company_id', companyId)
-
-    // Store encrypted certificate
+    // Store the new certificate FIRST (inactive). Only once that succeeded do we
+    // switch over — otherwise a failed insert would leave the company with no
+    // active certificate and unable to issue invoices.
     const { data, error } = await supabase
       .from('pos_certificates')
       .insert({
@@ -59,12 +62,24 @@ export async function POST(req: NextRequest) {
         tax_number: taxNumber,
         valid_from: validFrom?.toISOString(),
         valid_to: validTo?.toISOString(),
-        is_active: true,
+        is_active: false,
       })
       .select()
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    await supabase
+      .from('pos_certificates')
+      .update({ is_active: false })
+      .eq('company_id', companyId)
+      .neq('id', data.id)
+
+    const { error: activateErr } = await supabase
+      .from('pos_certificates')
+      .update({ is_active: true })
+      .eq('id', data.id)
+    if (activateErr) return NextResponse.json({ error: activateErr.message }, { status: 500 })
 
     return NextResponse.json({
       id: data.id,

@@ -56,7 +56,7 @@ export default function AccountingExportButton({
   }
 
   const inputCls =
-    'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#6D5EF7]/30 focus:border-[#6D5EF7]'
+    'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand'
 
   if (!isPro) {
     return (
@@ -70,7 +70,7 @@ export default function AccountingExportButton({
           </svg>
           <span className="sm:hidden">Excel</span>
           <span className="hidden sm:inline">Računovodski izvoz</span>
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-[#6D5EF7]/10 text-[#6D5EF7] rounded-full leading-none">
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-brand/10 text-brand rounded-full leading-none">
             PRO
           </span>
         </button>
@@ -78,8 +78,8 @@ export default function AccountingExportButton({
         <Modal open={open} onClose={() => setOpen(false)} title="Pro funkcija" size="sm">
           <div className="space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#6D5EF7]/10 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-[#6D5EF7]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>

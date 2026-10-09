@@ -71,6 +71,15 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
       ),
     },
     {
+      href: `${base}/customers`,
+      label: 'Stranke',
+      icon: (
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 100-8 4 4 0 000 8zm6 0a3 3 0 100-6M3 9a3 3 0 106 0" />
+        </svg>
+      ),
+    },
+    {
       href: `${base}/invoices`,
       label: 'Računi',
       icon: (
@@ -145,12 +154,12 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-active"
-                    className="absolute left-0 top-2 bottom-2 w-0.5 bg-[#6D5EF7] rounded-r-full"
+                    className="absolute left-0 top-2 bottom-2 w-0.5 bg-brand rounded-r-full"
                     transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
                   />
                 )}
                 <NavIcon>
-                  <span className={isActive ? 'text-[#6D5EF7]' : ''}>
+                  <span className={isActive ? 'text-brand' : ''}>
                     {item.icon}
                   </span>
                 </NavIcon>

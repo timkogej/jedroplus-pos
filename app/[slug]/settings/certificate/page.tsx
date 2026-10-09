@@ -1,21 +1,17 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import CertificateUpload from '@/components/settings/CertificateUpload'
 
 export const revalidate = 0
 
-export default async function CertificatePage({ params }: { params: { slug: string } }) {
+export default async function CertificatePage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   const { data: cert } = await supabase
     .from('pos_certificates')

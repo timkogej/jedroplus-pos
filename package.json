@@ -7,14 +7,16 @@
     "build": "node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start -p 3001",
     "lint": "node node_modules/next/dist/bin/next lint",
-    "typecheck": "node node_modules/typescript/lib/tsc.js --noEmit"
+    "typecheck": "node node_modules/typescript/lib/tsc.js --noEmit",
+    "test": "node node_modules/vitest/vitest.mjs run"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
+    "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.105.4",
     "@types/uuid": "^10.0.0",
     "framer-motion": "^12.38.0",
-    "next": "14.2.35",
+    "next": "^15.5.27",
     "node-forge": "^1.4.0",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
@@ -37,6 +39,7 @@
     "@types/react-dom": "^18",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   }
 }

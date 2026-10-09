@@ -1,14 +1,29 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase-config'
 
-// Auth is handled client-side by AuthGuard (which calls supabase.auth.getUser()).
-// The browser Supabase client stores sessions in localStorage, not cookies, so
-// middleware cannot read the session — the cookie check would always fail and
-// redirect every logged-in user back to /login.
-export function middleware(request: NextRequest) {
-  return NextResponse.next()
+// Keeps the Supabase session cookie fresh so Server Components can trust
+// auth.getUser(). Actual authorization (is this user allowed to see this
+// company?) happens in lib/auth/serverCompany.ts, not here. /api routes use
+// Bearer tokens and are excluded.
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request })
+
+  const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (list: { name: string; value: string; options: CookieOptions }[]) => {
+        list.forEach(({ name, value }) => request.cookies.set(name, value))
+        response = NextResponse.next({ request })
+        list.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+      },
+    },
+  })
+
+  await supabase.auth.getUser()
+  return response
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|fonts).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|fonts|api).*)'],
 }

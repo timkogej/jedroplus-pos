@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { pdfStorageKey, signedPdfUrl } from '@/lib/invoice/storage'
 import { createServiceClient } from '@/lib/supabase'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import { rateLimit } from '@/lib/rate-limit'
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
         currency: ctx.currency,
       })
 
-      const storageKey = `${companyId}/${reportLabel}.pdf`
+      const storageKey = pdfStorageKey(companyId, reportLabel)
       const { error: uploadErr } = await supabase.storage
         .from('z-reports')
         .upload(storageKey, pdfBuffer, { contentType: 'application/pdf', upsert: true })
@@ -109,7 +110,10 @@ export async function POST(req: NextRequest) {
       console.error('[z-report create] PDF generation failed (non-blocking):', pdfErr)
     }
 
-    return NextResponse.json({ report: { ...report, pdf_url: pdfUrl ?? report.pdf_url }, reportLabel })
+    return NextResponse.json({
+      report: { ...report, pdf_url: await signedPdfUrl(supabase, 'z-reports', pdfUrl ?? report.pdf_url) },
+      reportLabel,
+    })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Server error'
     console.error('[z-report create] Error:', err)

@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Header from '@/components/layout/Header'
 import AppointmentInvoiceCard from '@/components/appointment/AppointmentInvoiceCard'
 import Link from 'next/link'
@@ -7,16 +8,11 @@ import Button from '@/components/ui/Button'
 
 export const revalidate = 0
 
-export default async function AppointmentsPage({ params }: { params: { slug: string } }) {
+export default async function AppointmentsPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name, company_id')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   // Load completed, un-invoiced appointments for this company
   // "ID podjetja" contains the short company code (company_id), not the UUID

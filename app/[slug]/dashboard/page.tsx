@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
+import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import Link from 'next/link'
@@ -7,8 +8,10 @@ import SubscriptionSuccessToast from '@/components/dashboard/SubscriptionSuccess
 import OnboardingCompleteToast from '@/components/dashboard/OnboardingCompleteToast'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
+import AttentionBanner from '@/components/dashboard/AttentionBanner'
 import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
+import { ljDateString, ljMidnightUtc } from '@/lib/time'
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: 'green' | 'red' }) {
   const subColor = accent === 'green' ? 'text-green-600' : accent === 'red' ? 'text-red-600' : 'text-gray-400'
@@ -29,16 +32,11 @@ const isRevenue = (s: string) => s !== 'storno' && s !== 'cancelled'
 
 export const revalidate = 0
 
-export default async function DashboardPage({ params }: { params: { slug: string } }) {
+export default async function DashboardPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('id, slug, name, company_id')
-    .eq('slug', params.slug)
-    .single()
-
-  if (!company) redirect('/login')
+  const company = await requireCompanyForSlug(params.slug)
 
   // --- Onboarding gate ----------------------------------------------------
   // New companies (just subscribed) have no company data or premises yet. Send
@@ -54,7 +52,7 @@ export default async function DashboardPage({ params }: { params: { slug: string
       .eq('is_active', true),
   ])
 
-  const onboardingSkipped = cookies().get('onboarding_skipped')?.value === params.slug
+  const onboardingSkipped = (await cookies()).get('onboarding_skipped')?.value === params.slug
   const needsOnboarding = !onboardingCompanyData || (premiseCount ?? 0) === 0
   if (needsOnboarding && !onboardingSkipped) {
     redirect(`/${params.slug}/onboarding/step1`)
@@ -64,11 +62,25 @@ export default async function DashboardPage({ params }: { params: { slug: string
   // until then invoices are issued in FURS test mode.
   const showFursBanner = (activeCertCount ?? 0) === 0
 
-  const now = new Date()
-  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const thirtyStart = new Date(now); thirtyStart.setDate(now.getDate() - 29); thirtyStart.setHours(0, 0, 0, 0)
+  const { data: attentionItems } = await supabase
+    .from('pos_attention_items')
+    .select('id, kind, message, invoice_id')
+    .eq('company_id', company.id)
+    .is('resolved_at', null)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  // All day/month boundaries are Slovenian local time (the server runs in UTC).
+  const todayStr = ljDateString()
+  const [ty, tm, td] = todayStr.split('-').map(Number)
+  const ymd = (y: number, m: number, d: number) => {
+    const dt = new Date(Date.UTC(y, m - 1, d))
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
+  }
+  const todayStart = ljMidnightUtc(todayStr)
+  const monthStart = ljMidnightUtc(ymd(ty, tm, 1))
+  const prevMonthStart = ljMidnightUtc(ymd(ty, tm - 1, 1))
+  const thirtyStart = ljMidnightUtc(ymd(ty, tm, td - 29))
   // Fetch from the earliest boundary we need so today/month/prev-month/30-day are all computed in JS.
   const statsFrom = prevMonthStart < thirtyStart ? prevMonthStart : thirtyStart
 
@@ -147,18 +159,17 @@ export default async function DashboardPage({ params }: { params: { slug: string
 
   // Last 30 days revenue chart, one bucket per day
   const buckets = new Map<string, { total: number; count: number }>()
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(thirtyStart); d.setDate(thirtyStart.getDate() + i)
-    buckets.set(d.toISOString().slice(0, 10), { total: 0, count: 0 })
+  for (let i = 29; i >= 0; i--) {
+    buckets.set(ymd(ty, tm, td - i), { total: 0, count: 0 })
   }
   rows.filter((r) => isRevenue(r.status) && inRange(r, thirtyStart)).forEach((r) => {
-    const key = new Date(r.invoice_date).toISOString().slice(0, 10)
+    const key = ljDateString(new Date(r.invoice_date))
     const b = buckets.get(key)
     if (b) { b.total += r.total; b.count += 1 }
   })
   const chartData: RevenuePoint[] = Array.from(buckets.entries()).map(([date, v]) => ({
     date,
-    label: `${new Date(date).getDate()}.${new Date(date).getMonth() + 1}.`,
+    label: `${Number(date.slice(8, 10))}.${Number(date.slice(5, 7))}.`,
     total: Number(v.total.toFixed(2)),
     count: v.count,
   }))
@@ -182,6 +193,10 @@ export default async function DashboardPage({ params }: { params: { slug: string
       />
       <main className="flex-1 p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-6">
+          {(attentionItems?.length ?? 0) > 0 && (
+            <AttentionBanner items={attentionItems!} companyId={company.id} slug={params.slug} />
+          )}
+
           {/* FURS certificate reminder — shown until an active certificate exists */}
           {showFursBanner && (
             <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -275,7 +290,7 @@ export default async function DashboardPage({ params }: { params: { slug: string
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <p className="text-sm text-gray-500">Ni izstavljenih računov</p>
-                <Link href={`/${params.slug}/invoices/new`} className="inline-block mt-2 text-sm text-[#6D5EF7] hover:underline">
+                <Link href={`/${params.slug}/invoices/new`} className="inline-block mt-2 text-sm text-brand hover:underline">
                   Izstavite prvi račun →
                 </Link>
               </div>
@@ -288,7 +303,7 @@ export default async function DashboardPage({ params }: { params: { slug: string
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${inv.eor ? 'bg-green-400' : inv.status === 'cancelled' ? 'bg-red-400' : 'bg-amber-400'}`} />
                           <div className="min-w-0">
-                            <p className="text-sm font-mono font-medium text-gray-900 group-hover:text-[#6D5EF7] transition-colors">{inv.invoice_number}</p>
+                            <p className="text-sm font-mono font-medium text-gray-900 group-hover:text-brand transition-colors">{inv.invoice_number}</p>
                             <p className="text-xs text-gray-500 truncate">{inv.client_name ?? 'Neznana stranka'}</p>
                           </div>
                         </div>
