@@ -4,6 +4,7 @@ import { confirmInvoiceWithFurs } from '@/lib/furs/api'
 import { buildFursTaxes, singleFursTax } from '@/lib/furs/taxes'
 import { formatDateForZoi } from '@/lib/furs/zoi'
 import type { FursInvoiceRequest } from '@/lib/furs/types'
+import { raiseAttention } from '@/lib/attention'
 
 // Give up on an invoice once it has been waiting this long. Time-based (not a
 // retry count) so it works whatever the call frequency is: vercel.json only
@@ -163,6 +164,19 @@ async function handleRetry(req: NextRequest) {
           ...(tooOld ? { status: 'furs_failed' } : {}),
         })
         .eq('id', inv.id)
+
+      if (tooOld) {
+        // Out of time: a human has to deal with this (contact FURS, re-check the
+        // certificate, premise registration, ...) — surface it on the dashboard.
+        await raiseAttention(supabase, {
+          companyId: inv.company_id,
+          kind: 'furs_failed',
+          reference: inv.id,
+          invoiceId: inv.id,
+          message: `Račun ${inv.invoice_number} ni potrjen pri FURS (več kot 72 ur). Zadnja napaka: ${message}`,
+          details: { error: message },
+        })
+      }
 
       results.push({ invoiceId: inv.id, ok: false, error: message })
     }

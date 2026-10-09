@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export type AttentionKind = 'online_invoice_failed' | 'refund_needs_storno'
+export type AttentionKind = 'online_invoice_failed' | 'refund_needs_storno' | 'furs_failed'
 
 /**
  * Records something a human must resolve (shown on the dashboard). Deduped on
