@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
+import { getInvoiceLoyaltyDisplay } from '@/lib/loyalty/award'
 
 export async function GET(
   req: NextRequest,
@@ -21,6 +22,24 @@ export async function GET(
 
     if (error || !invoice) {
       return NextResponse.json({ error: 'Račun ni najden' }, { status: 404 })
+    }
+
+    // Prefer the PDF that was generated when the invoice was issued: it is exactly
+    // what the customer received (buyer company, currency, loyalty lines), which a
+    // regeneration from the stored row cannot reproduce.
+    if (invoice.pdf_url) {
+      try {
+        const stored = await fetch(invoice.pdf_url)
+        if (stored.ok) {
+          const buf = Buffer.from(await stored.arrayBuffer())
+          return NextResponse.json({
+            base64: buf.toString('base64'),
+            filename: `Racun-${invoice.invoice_number}.pdf`,
+          })
+        }
+      } catch (e) {
+        console.warn('[pdf route] stored PDF unavailable, regenerating:', e)
+      }
     }
 
     const [
@@ -81,6 +100,12 @@ export async function GET(
       stornoOf = originalInv?.invoice_number
     }
 
+    const loyaltyDisplay = await getInvoiceLoyaltyDisplay(supabase, {
+      companyId: invoice.company_id,
+      invoiceId: invoice.id,
+      clientEmail: invoice.client_email,
+    }).catch(() => ({ redeemed: null, earned: null }))
+
     const pdfBuffer = await generateInvoicePdf({
       invoice,
       items: invoice.pos_invoice_items ?? [],
@@ -94,6 +119,8 @@ export async function GET(
       stornoOf,
       premiseCode: premiseData?.premise_id,
       deviceCode: deviceData?.device_id,
+      loyaltyRedeemed: loyaltyDisplay.redeemed ?? undefined,
+      loyaltyEarned: loyaltyDisplay.earned ?? undefined,
     })
 
     return NextResponse.json({

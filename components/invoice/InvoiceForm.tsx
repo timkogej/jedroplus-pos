@@ -291,7 +291,10 @@ export default function InvoiceForm({
     try {
       const res = await authFetch(`/api/invoices/${issuedInvoice.id}/pdf`)
       if (!res.ok) throw new Error('PDF generation failed')
-      const blob = await res.blob()
+      // The endpoint answers with JSON { base64, filename }, not the file itself.
+      const { base64 } = (await res.json()) as { base64: string }
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+      const blob = new Blob([bytes], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 30000)

@@ -98,8 +98,16 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json({ error: 'Naročnina je že aktivna' }, { status: 409 })
     }
+    // A past-due subscription still exists in Stripe and keeps retrying — a new
+    // checkout would bill the customer twice. They must fix the card instead.
+    if (existingSub?.stripe_subscription_id && existingSub.status === 'past_due') {
+      return NextResponse.json(
+        { error: 'Plačilo naročnine ni uspelo. Posodobite plačilno sredstvo v upravljanju naročnine.' },
+        { status: 409 }
+      )
+    }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin
 
     // --- Create the Checkout Session (subscription mode, no trial) ---------
     const session = await stripe.checkout.sessions.create({

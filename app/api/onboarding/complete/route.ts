@@ -28,8 +28,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, emailsSent: false, reason: 'no_company_email' })
     }
 
+    // Build the link from the company's real slug, never from the request body.
+    const { data: company } = await supabase
+      .from('companies')
+      .select('slug')
+      .eq('id', companyId)
+      .maybeSingle()
+    if (!company?.slug) return NextResponse.json({ error: 'Podjetje ni najdeno' }, { status: 404 })
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin
-    const dashboardUrl = `${appUrl}/${slug}/dashboard`
+    const dashboardUrl = `${appUrl}/${company.slug}/dashboard`
 
     const result = await sendOnboardingEmails({
       companyEmail,

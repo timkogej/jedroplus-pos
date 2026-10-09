@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
         type: 'express',
         country: 'SI',
         email: companyData?.email ?? undefined,
-        business_type: 'individual',
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
@@ -68,7 +67,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: `${baseUrl}/${company.slug}/settings/payments?refresh=1`,
