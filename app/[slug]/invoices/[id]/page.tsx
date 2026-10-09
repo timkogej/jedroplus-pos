@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { renderInvoicePdfBlob } from '@/lib/invoice/clientPdf'
+import { useCompany } from '@/components/layout/CompanyContext'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import Badge from '@/components/ui/Badge'
@@ -17,6 +18,7 @@ export default function InvoiceDetailPage() {
   const router = useRouter()
   const slug = params.slug as string
   const id = params.id as string
+  const companyCtx = useCompany()
 
   const [invoice, setInvoice] = useState<(PosInvoice & { pos_invoice_items?: PosInvoiceItem[] }) | null>(null)
   const [company, setCompany] = useState<{ id: string; name: string } | null>(null)
@@ -32,17 +34,8 @@ export default function InvoiceDetailPage() {
     // layout). The invoice, company and company data are independent of each
     // other, so ask for all three at once instead of one after another. The
     // company_id check below stays as defense-in-depth on top of RLS.
-    const { data: comp } = await supabase
-      .from('companies')
-      .select('id, name')
-      .eq('slug', slug)
-      .single()
+    const comp: { id: string; name: string } = { id: companyCtx.id, name: companyCtx.displayName }
     setCompany(comp)
-
-    if (!comp) {
-      setLoading(false)
-      return
-    }
 
     const [{ data: inv }, { data: cd }] = await Promise.all([
       supabase
@@ -56,7 +49,7 @@ export default function InvoiceDetailPage() {
     setInvoice(inv)
     setCompanyData(cd)
     setLoading(false)
-  }, [id, slug])
+  }, [id, companyCtx.id, companyCtx.displayName])
 
   useEffect(() => { load() }, [load])
 

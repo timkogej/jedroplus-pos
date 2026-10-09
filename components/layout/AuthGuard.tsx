@@ -3,11 +3,12 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
+import { CompanyProvider, type CompanyInfo } from '@/components/layout/CompanyContext'
 
 interface AuthGuardProps {
   slug: string
   /** Already verified by the server layout (requireCompanyForSlug). */
-  company: { id: string; company_id: string | null; displayName: string }
+  company: CompanyInfo
   children: React.ReactNode
 }
 
@@ -38,5 +39,5 @@ export default function AuthGuard({ slug, company, children }: AuthGuardProps) {
     return () => data.subscription.unsubscribe()
   }, [router])
 
-  return <>{children}</>
+  return <CompanyProvider value={company}>{children}</CompanyProvider>
 }

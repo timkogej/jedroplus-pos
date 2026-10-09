@@ -101,7 +101,7 @@ export default async function CompanyLayout(
     // AuthGuard only syncs the client store and reacts to sign-out.
     <AuthGuard
       slug={params.slug}
-      company={{ id: company.id, company_id: company.company_id, displayName }}
+      company={{ id: company.id, company_id: company.company_id, name: company.name, displayName }}
     >
       <NavigationProgress />
       <div className="flex min-h-screen">

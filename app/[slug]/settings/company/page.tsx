@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { useCompany } from '@/components/layout/CompanyContext'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -41,6 +42,7 @@ const empty: CompanyData = {
 export default function CompanyDataPage() {
   const params = useParams()
   const slug = params.slug as string
+  const companyCtx = useCompany()
 
   const [companyId, setCompanyId] = useState('')
   const [data, setData] = useState<CompanyData>(empty)
@@ -51,11 +53,8 @@ export default function CompanyDataPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: company } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('slug', slug)
-        .single()
+      const company: { id: string; name: string } | null = { id: companyCtx.id, name: companyCtx.name }
+      const companyErr: { message?: string } | null = null
       if (!company) return
 
       setCompanyId(company.id)

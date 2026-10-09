@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { useCompany } from '@/components/layout/CompanyContext'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -128,6 +129,7 @@ interface Settings {
 export default function InvoiceSettingsPage() {
   const params = useParams()
   const slug = params.slug as string
+  const companyCtx = useCompany()
 
   const [companyId, setCompanyId]   = useState('')
   const [prefix, setPrefix]         = useState('R')
@@ -150,16 +152,7 @@ export default function InvoiceSettingsPage() {
   // ── Load settings ──────────────────────────────────────────
   useEffect(() => {
     async function load() {
-      const { data: company, error: companyErr } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('slug', slug)
-        .single()
-      if (companyErr || !company) {
-        setError(companyErr?.message ?? 'Podjetje ni najdeno')
-        setLoading(false)
-        return
-      }
+      const company = { id: companyCtx.id, name: companyCtx.name }
       setCompanyId(company.id)
 
       const { data: s, error: settingsErr } = await supabase

@@ -4,6 +4,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { useCompany } from '@/components/layout/CompanyContext'
 import { authFetch } from '@/lib/authFetch'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
@@ -35,6 +36,7 @@ function formatDate(iso: string | null): string {
 export default function SubscriptionSettingsPage() {
   const params = useParams()
   const slug = params.slug as string
+  const companyCtx = useCompany()
 
   const [companyId, setCompanyId] = useState('')
   const [sub, setSub] = useState<SubStatus | null>(null)
@@ -46,7 +48,7 @@ export default function SubscriptionSettingsPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: company } = await supabase.from('companies').select('id').eq('slug', slug).single()
+      const company: { id: string } | null = { id: companyCtx.id }
       if (!company) {
         setLoading(false)
         return

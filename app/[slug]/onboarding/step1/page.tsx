@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useCompany } from '@/components/layout/CompanyContext'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import OnboardingShell from '@/components/onboarding/OnboardingShell'
@@ -38,6 +39,7 @@ export default function OnboardingStep1() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
+  const companyCtx = useCompany()
 
   const [companyId, setCompanyId] = useState('')
   const [companyName, setCompanyName] = useState<string | null>(null)
@@ -49,11 +51,8 @@ export default function OnboardingStep1() {
 
   useEffect(() => {
     async function load() {
-      const { data: company } = await supabase
-        .from('companies')
-        .select('id, name')
-        .eq('slug', slug)
-        .single()
+      const company: { id: string; name: string } | null = { id: companyCtx.id, name: companyCtx.name }
+      const companyErr: { message?: string } | null = null
       if (!company) return
       setCompanyId(company.id)
       setCompanyName(company.name)
