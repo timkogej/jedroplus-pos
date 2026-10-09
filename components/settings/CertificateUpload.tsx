@@ -69,7 +69,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
       // Immediately test the FURS connection with the new certificate
       setConnectionTest('testing')
       try {
-        const statusRes = await authFetch(`/api/furs/status?company_id=${companyId}`)
+        const statusRes = await authFetch(`/api/furs/status?company_id=${companyId}&fresh=1`)
         const statusData = await statusRes.json()
         setConnectionTest(statusRes.ok && statusData.status === 'connected' ? 'ok' : 'failed')
       } catch {

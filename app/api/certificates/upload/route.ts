@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { encrypt } from '@/lib/crypto'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import { parseP12 } from '@/lib/furs/certificate'
+import { revalidateTag } from 'next/cache'
 
 // A .p12 is a few KB; refuse anything big before reading it into memory.
 const MAX_P12_BYTES = 256 * 1024
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
       .eq('id', data.id)
     if (activateErr) return NextResponse.json({ error: activateErr.message }, { status: 500 })
 
+    revalidateTag('furs-status') // the sidebar indicator caches the FURS status for 5 min
     return NextResponse.json({
       id: data.id,
       tax_number: taxNumber,

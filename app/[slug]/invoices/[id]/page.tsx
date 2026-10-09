@@ -2,13 +2,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { pdf } from '@react-pdf/renderer'
+import { renderInvoicePdfBlob } from '@/lib/invoice/clientPdf'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/layout/Header'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
-import InvoicePDF from '@/components/invoice/InvoicePDF'
 import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
 import type { PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
@@ -29,10 +28,10 @@ export default function InvoiceDetailPage() {
   const [stornoError, setStornoError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    // Resolve the company first (the slug is guaranteed by AuthGuard to be the
-    // logged-in user's own company), then scope the invoice fetch to it. The
-    // company_id filter is defense-in-depth on top of RLS: it prevents viewing
-    // another company's invoice by guessing its id in the URL.
+    // The slug is the logged-in user's own company (verified by the server
+    // layout). The invoice, company and company data are independent of each
+    // other, so ask for all three at once instead of one after another. The
+    // company_id check below stays as defense-in-depth on top of RLS.
     const { data: comp } = await supabase
       .from('companies')
       .select('id, name')
@@ -45,19 +44,16 @@ export default function InvoiceDetailPage() {
       return
     }
 
-    const { data: inv } = await supabase
-      .from('pos_invoices')
-      .select('*, pos_invoice_items(*)')
-      .eq('id', id)
-      .eq('company_id', comp.id)
-      .single()
+    const [{ data: inv }, { data: cd }] = await Promise.all([
+      supabase
+        .from('pos_invoices')
+        .select('*, pos_invoice_items(*)')
+        .eq('id', id)
+        .eq('company_id', comp.id)
+        .single(),
+      supabase.from('pos_company_data').select('*').eq('company_id', comp.id).maybeSingle(),
+    ])
     setInvoice(inv)
-
-    const { data: cd } = await supabase
-      .from('pos_company_data')
-      .select('*')
-      .eq('company_id', comp.id)
-      .maybeSingle()
     setCompanyData(cd)
     setLoading(false)
   }, [id, slug])
@@ -84,9 +80,7 @@ export default function InvoiceDetailPage() {
       return
     }
     if (!company) return
-    const blob = await pdf(
-      <InvoicePDF invoice={invoice} companyName={company.name} />
-    ).toBlob()
+    const blob = await renderInvoicePdfBlob(invoice, company.name)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -123,7 +117,7 @@ export default function InvoiceDetailPage() {
     const base64 = await fetchPdfBase64()
     if (!base64) {
       if (!company) return
-      const blob = await pdf(<InvoicePDF invoice={invoice} companyName={company.name} />).toBlob()
+      const blob = await renderInvoicePdfBlob(invoice, company.name)
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 60000)

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/authFetch'
+import { usePosStore } from '@/store/posStore'
 
 type FursStatus = 'connected' | 'demo' | 'error' | 'loading'
 
@@ -13,59 +13,74 @@ const STATUS_UI: Record<Exclude<FursStatus, 'loading'>, { dot: string; label: st
   error:     { dot: 'bg-red-500',   label: 'FURS: Napaka' },
 }
 
+interface Result { status: Exclude<FursStatus, 'loading'>; message: string | null }
+
+// Shared by every indicator on the page (sidebar + mobile header) and across
+// navigations, so the check runs once per few minutes — not once per component
+// per page load.
+const cache = new Map<string, { at: number; result: Result }>()
+const inflight = new Map<string, Promise<Result>>()
+
+async function fetchStatus(companyId: string): Promise<Result> {
+  const hit = cache.get(companyId)
+  if (hit && Date.now() - hit.at < POLL_INTERVAL_MS) return hit.result
+  const running = inflight.get(companyId)
+  if (running) return running
+
+  const p = (async (): Promise<Result> => {
+    try {
+      const res = await authFetch(`/api/furs/status?company_id=${companyId}`)
+      const data = await res.json()
+      const result: Result =
+        !res.ok || !data.status
+          ? { status: 'error', message: data.error ?? null }
+          : { status: data.status, message: data.message ?? null }
+      cache.set(companyId, { at: Date.now(), result })
+      return result
+    } catch {
+      return { status: 'error', message: null }
+    } finally {
+      inflight.delete(companyId)
+    }
+  })()
+  inflight.set(companyId, p)
+  return p
+}
+
 interface FursStatusIndicatorProps {
   slug: string
   compact?: boolean
   className?: string
 }
 
-export default function FursStatusIndicator({ slug, compact = false, className = '' }: FursStatusIndicatorProps) {
-  const [status, setStatus] = useState<FursStatus>('loading')
-  const [message, setMessage] = useState<string | null>(null)
+export default function FursStatusIndicator({ compact = false, className = '' }: FursStatusIndicatorProps) {
+  // The company id is put into the store by the layout (AuthGuard) — no extra
+  // database query is needed to find it.
+  const companyId = usePosStore((s) => s.companyId)
+  const [state, setState] = useState<{ status: FursStatus; message: string | null }>({ status: 'loading', message: null })
 
   useEffect(() => {
+    if (!companyId) return
     let cancelled = false
-
-    async function check() {
-      try {
-        const { data: company } = await supabase
-          .from('companies')
-          .select('id')
-          .eq('slug', slug)
-          .single()
-        if (!company || cancelled) return
-
-        const res = await authFetch(`/api/furs/status?company_id=${company.id}`)
-        const data = await res.json()
-        if (cancelled) return
-
-        if (!res.ok || !data.status) {
-          setStatus('error')
-          setMessage(data.error ?? null)
-        } else {
-          setStatus(data.status as FursStatus)
-          setMessage(data.message ?? null)
-        }
-      } catch {
-        if (!cancelled) setStatus('error')
-      }
+    const run = async () => {
+      const r = await fetchStatus(companyId)
+      if (!cancelled) setState(r)
     }
-
-    check()
-    const interval = setInterval(check, POLL_INTERVAL_MS)
+    run()
+    const interval = setInterval(run, POLL_INTERVAL_MS)
     return () => {
       cancelled = true
       clearInterval(interval)
     }
-  }, [slug])
+  }, [companyId])
 
-  if (status === 'loading') return null
-  const ui = STATUS_UI[status]
+  if (state.status === 'loading') return null
+  const ui = STATUS_UI[state.status]
 
   return (
     <div
       className={`${compact ? 'inline-flex rounded-full border border-gray-100 bg-white px-2.5 py-1' : 'flex px-3 py-2'} items-center gap-2 text-xs text-gray-500 ${className}`}
-      title={message ?? ui.label}
+      title={state.message ?? ui.label}
     >
       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ui.dot}`} />
       <span>{ui.label}</span>

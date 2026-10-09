@@ -2,12 +2,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { pdf } from '@react-pdf/renderer'
+import { renderInvoicePdfBlob } from '@/lib/invoice/clientPdf'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Modal from '@/components/ui/Modal'
-import InvoicePDF from '@/components/invoice/InvoicePDF'
 import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
@@ -321,12 +320,10 @@ export default function InvoiceForm({
     } catch {
       // fallback to client-side generation
       if (!issuedInvoice.invoiceRecord) return
-      const blob = await pdf(
-        <InvoicePDF
-          invoice={issuedInvoice.invoiceRecord as PosInvoice & { pos_invoice_items?: PosInvoiceItem[] }}
-          companyName={companyName}
-        />
-      ).toBlob()
+      const blob = await renderInvoicePdfBlob(
+        issuedInvoice.invoiceRecord as PosInvoice & { pos_invoice_items?: PosInvoiceItem[] },
+        companyName
+      )
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 30000)

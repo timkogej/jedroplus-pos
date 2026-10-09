@@ -97,9 +97,12 @@ export default async function CompanyLayout(
   const displayName = (branding?.['Naziv Podjetja'] as string | undefined) || company.name
 
   return (
-    // AuthGuard runs client-side: verifies session, confirms slug belongs to the
-    // logged-in user, and redirects to the correct slug if mismatched.
-    <AuthGuard slug={params.slug}>
+    // The session and the company were verified above (requireCompanyForSlug);
+    // AuthGuard only syncs the client store and reacts to sign-out.
+    <AuthGuard
+      slug={params.slug}
+      company={{ id: company.id, company_id: company.company_id, displayName }}
+    >
       <NavigationProgress />
       <div className="flex min-h-screen">
         <Sidebar slug={params.slug} companyName={displayName} />

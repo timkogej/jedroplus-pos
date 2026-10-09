@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase'
 import Button from '@/components/ui/Button'
-import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
+import RevenueChartLazy from '@/components/dashboard/RevenueChartLazy'
+import type { RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
 import { ljDateString, ljMidnightUtc } from '@/lib/time'
 
@@ -179,7 +180,7 @@ export default async function DashboardBody({ company, slug, loyaltyEnabled, pre
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <h2 className="text-sm font-semibold text-gray-900 mb-1">Promet zadnjih 30 dni</h2>
             <p className="text-xs text-gray-400 mb-4">Dnevni prihodki v EUR</p>
-            <RevenueChart data={chartData} />
+            <RevenueChartLazy data={chartData} />
           </div>
 
           {/* This month summary */}
