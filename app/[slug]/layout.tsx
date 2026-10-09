@@ -8,13 +8,18 @@ import SubscriptionBanner from '@/components/layout/SubscriptionBanner'
 import MissedClosingBanner from '@/components/layout/MissedClosingBanner'
 import { dayBounds, localDateString } from '@/lib/z-report/calculate'
 
-export default async function CompanyLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode
-  params: { slug: string }
-}) {
+export default async function CompanyLayout(
+  props: {
+    children: React.ReactNode
+    params: Promise<{ slug: string }>
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const supabase = createServiceClient()
 
   // Verify the slug exists at all; redirect to login if not.

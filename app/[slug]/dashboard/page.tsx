@@ -32,7 +32,8 @@ const isRevenue = (s: string) => s !== 'storno' && s !== 'cancelled'
 
 export const revalidate = 0
 
-export default async function DashboardPage({ params }: { params: { slug: string } }) {
+export default async function DashboardPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
   const company = await requireCompanyForSlug(params.slug)
@@ -51,7 +52,7 @@ export default async function DashboardPage({ params }: { params: { slug: string
       .eq('is_active', true),
   ])
 
-  const onboardingSkipped = cookies().get('onboarding_skipped')?.value === params.slug
+  const onboardingSkipped = (await cookies()).get('onboarding_skipped')?.value === params.slug
   const needsOnboarding = !onboardingCompanyData || (premiseCount ?? 0) === 0
   if (needsOnboarding && !onboardingSkipped) {
     redirect(`/${params.slug}/onboarding/step1`)

@@ -7,7 +7,8 @@ import CertificateUpload from '@/components/settings/CertificateUpload'
 
 export const revalidate = 0
 
-export default async function CertificatePage({ params }: { params: { slug: string } }) {
+export default async function CertificatePage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
   const company = await requireCompanyForSlug(params.slug)

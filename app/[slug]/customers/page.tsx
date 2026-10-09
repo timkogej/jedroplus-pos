@@ -19,13 +19,14 @@ function displayName(r: StrankaRow): string {
   return r.Stranka || `${r.Ime ?? ''} ${r.Priimek ?? ''}`.trim() || '—'
 }
 
-export default async function CustomersPage({
-  params,
-  searchParams,
-}: {
-  params: { slug: string }
-  searchParams: { q?: string }
-}) {
+export default async function CustomersPage(
+  props: {
+    params: Promise<{ slug: string }>
+    searchParams: Promise<{ q?: string }>
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const company = await requireCompanyForSlug(params.slug)
   const supabase = createServiceClient()
   const loyalty = await getLoyaltySettings(supabase, company.id)

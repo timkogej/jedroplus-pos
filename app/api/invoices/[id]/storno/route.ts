@@ -13,10 +13,8 @@ import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
 import { reversePointsForStorno } from '@/lib/loyalty/award'
 import type { PosInvoiceItem } from '@/types'
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   // Set once this request has claimed the original ('storno_pending'); the
   // catch block / early exits hand it back so a failure never leaves the
   // original stuck.

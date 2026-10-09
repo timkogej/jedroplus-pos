@@ -119,7 +119,8 @@ const sections = [
   },
 ]
 
-export default async function SettingsPage({ params }: { params: { slug: string } }) {
+export default async function SettingsPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
   const company = await requireCompanyForSlug(params.slug)

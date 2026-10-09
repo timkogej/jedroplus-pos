@@ -8,7 +8,8 @@ import Button from '@/components/ui/Button'
 
 export const revalidate = 0
 
-export default async function AppointmentsPage({ params }: { params: { slug: string } }) {
+export default async function AppointmentsPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
   const company = await requireCompanyForSlug(params.slug)

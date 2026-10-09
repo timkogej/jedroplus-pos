@@ -25,7 +25,8 @@ function paymentLabel(method: string) {
   return { cash: 'Gotovina', card: 'Kartica', transfer: 'Nakazilo' }[method] ?? method
 }
 
-export default async function InvoicesPage({ params }: { params: { slug: string } }) {
+export default async function InvoicesPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
   const company = await requireCompanyForSlug(params.slug)

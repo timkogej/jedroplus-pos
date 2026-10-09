@@ -7,8 +7,8 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase-config'
  * out who is logged in (auth.getUser()); data access goes through the service
  * client after an explicit authorization check.
  */
-export function createSessionClient() {
-  const cookieStore = cookies()
+export async function createSessionClient() {
+  const cookieStore = await cookies()
   return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
       getAll: () => cookieStore.getAll(),

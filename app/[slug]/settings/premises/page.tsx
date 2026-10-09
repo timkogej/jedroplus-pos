@@ -8,7 +8,8 @@ import type { PosPremise, PosDevice } from '@/types'
 
 export const revalidate = 0
 
-export default async function PremisesPage({ params }: { params: { slug: string } }) {
+export default async function PremisesPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
   const company = await requireCompanyForSlug(params.slug)

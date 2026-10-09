@@ -4,10 +4,8 @@ import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
 import { getInvoiceLoyaltyDisplay } from '@/lib/loyalty/award'
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const auth = await requireInvoiceAccess(req, params.id)
     if ('response' in auth) return auth.response

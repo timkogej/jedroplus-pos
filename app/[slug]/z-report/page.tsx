@@ -8,7 +8,8 @@ import type { ZReport } from '@/types'
 
 export const revalidate = 0
 
-export default async function ZReportPage({ params }: { params: { slug: string } }) {
+export default async function ZReportPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const supabase = createServiceClient()
 
   const company = await requireCompanyForSlug(params.slug)

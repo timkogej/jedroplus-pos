@@ -22,7 +22,7 @@ export interface AuthorizedCompany {
 export const requireCompanyForSlug = cache(async (slug: string): Promise<AuthorizedCompany> => {
   const {
     data: { user },
-  } = await createSessionClient().auth.getUser()
+  } = await (await createSessionClient()).auth.getUser()
   if (!user) redirect('/login')
 
   const service = createServiceClient()

@@ -32,13 +32,14 @@ interface SearchParams {
   service3Id?: string
 }
 
-export default async function NewInvoicePage({
-  params,
-  searchParams,
-}: {
-  params: { slug: string }
-  searchParams: SearchParams
-}) {
+export default async function NewInvoicePage(
+  props: {
+    params: Promise<{ slug: string }>
+    searchParams: Promise<SearchParams>
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const supabase = createServiceClient()
 
   const company = await requireCompanyForSlug(params.slug)

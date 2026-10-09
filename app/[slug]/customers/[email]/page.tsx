@@ -21,7 +21,8 @@ function fmt(iso: string): string {
   return `${t(p.day)}.${t(p.month)}.${p.year} ${t(p.hour)}:${t(p.minute)}`
 }
 
-export default async function CustomerDetailPage({ params }: { params: { slug: string; email: string } }) {
+export default async function CustomerDetailPage(props: { params: Promise<{ slug: string; email: string }> }) {
+  const params = await props.params;
   const company = await requireCompanyForSlug(params.slug)
   const email = decodeURIComponent(params.email).trim().toLowerCase()
   const supabase = createServiceClient()
