@@ -185,7 +185,18 @@ export default function InvoiceForm({
     setItems((prev) => prev.filter((_, i) => i !== index))
   }
 
+  // Once an invoice exists the form is spent: leaving it open and pressing the
+  // button again would try to issue a second invoice for the same appointment.
+  function openIssuedInvoice(id?: string) {
+    const target = id ?? issuedInvoice?.id
+    if (target) router.push(`/${slug}/invoices/${target}`)
+  }
+
   async function handleSubmit() {
+    if (issuedInvoice) {
+      openIssuedInvoice()
+      return
+    }
     setError('')
     if (!premiseId || !deviceId) {
       setError('Izberite poslovni prostor in napravo')
@@ -235,6 +246,11 @@ export default function InvoiceForm({
         }),
       })
       const data = await res.json()
+      if (res.status === 409 && data.code === 'duplicate_invoice' && data.existingInvoiceId) {
+        // Already issued (double click, back button, second tab): show it.
+        router.push(`/${slug}/invoices/${data.existingInvoiceId}`)
+        return
+      }
       if (!res.ok) throw new Error(data.error || 'Napaka pri izstavitvi')
 
       setIssuedInvoice({
@@ -708,12 +724,19 @@ export default function InvoiceForm({
         </div>
       )}
 
-      <Button onClick={handleSubmit} loading={loading} size="lg" className="w-full">
-        Potrdi in izstavi račun
+      <Button onClick={handleSubmit} loading={loading} disabled={loading} size="lg" className="w-full">
+        {issuedInvoice ? 'Račun je izdan — odpri račun' : 'Potrdi in izstavi račun'}
       </Button>
 
       {/* Delivery modal */}
-      <Modal open={deliveryModal} onClose={() => setDeliveryModal(false)} title="Dostava računa">
+      <Modal
+        open={deliveryModal}
+        onClose={() => {
+          setDeliveryModal(false)
+          openIssuedInvoice()
+        }}
+        title="Dostava računa"
+      >
         <div className="space-y-3">
           <p className="text-sm text-gray-600">Kako želite dostaviti račun?</p>
 
@@ -792,7 +815,15 @@ export default function InvoiceForm({
       </Modal>
 
       {/* Print format modal */}
-      <Modal open={printFormatModal} onClose={() => setPrintFormatModal(false)} title="Oblika tiskanja" size="sm">
+      <Modal
+        open={printFormatModal}
+        onClose={() => {
+          setPrintFormatModal(false)
+          openIssuedInvoice()
+        }}
+        title="Oblika tiskanja"
+        size="sm"
+      >
         <div className="space-y-3">
           <p className="text-sm text-gray-600">Izberite obliko tiskanja:</p>
           <div className="grid grid-cols-1 gap-2">

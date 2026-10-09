@@ -26,23 +26,25 @@ export const requireCompanyForSlug = cache(async (slug: string): Promise<Authori
   if (!user) redirect('/login')
 
   const service = createServiceClient()
-  const { data: profile } = await service
-    .from('profiles')
-    .select('default_company_id')
-    .eq('id', user.id)
-    .maybeSingle()
+
+  // Profile and the requested company are independent lookups — run together.
+  const [{ data: profile }, { data: requested }] = await Promise.all([
+    service.from('profiles').select('default_company_id').eq('id', user.id).maybeSingle(),
+    service.from('companies').select('id, slug, name, company_id').eq('slug', slug).maybeSingle(),
+  ])
 
   const ownCompanyId = (profile?.default_company_id as string | undefined) ?? null
   if (!ownCompanyId) redirect('/login')
 
-  const { data: company } = await service
+  // The common case: the URL's company is the user's own.
+  if (requested && requested.id === ownCompanyId) return requested as AuthorizedCompany
+
+  // Someone else's (or an unknown) slug: send them to their own company.
+  const { data: own } = await service
     .from('companies')
-    .select('id, slug, name, company_id')
+    .select('slug')
     .eq('id', ownCompanyId)
     .maybeSingle()
-  if (!company) redirect('/login')
-
-  if (company.slug !== slug) redirect(`/${company.slug}/dashboard`)
-
-  return company as AuthorizedCompany
+  if (!own) redirect('/login')
+  redirect(`/${own.slug}/dashboard`)
 })

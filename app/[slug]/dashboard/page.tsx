@@ -42,7 +42,13 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
   // New companies (just subscribed) have no company data or premises yet. Send
   // them through the onboarding flow unless they've explicitly skipped it
   // (cookie set by the "Preskočite nastavitev" link).
-  const [{ data: onboardingCompanyData }, { count: premiseCount }, { count: activeCertCount }] = await Promise.all([
+  const [
+    { data: onboardingCompanyData },
+    { count: premiseCount },
+    { count: activeCertCount },
+    { data: attentionItems },
+    { data: loyaltySettings },
+  ] = await Promise.all([
     supabase.from('pos_company_data').select('id').eq('company_id', company.id).maybeSingle(),
     supabase.from('pos_premises').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
     supabase
@@ -50,6 +56,14 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
       .select('id', { count: 'exact', head: true })
       .eq('company_id', company.id)
       .eq('is_active', true),
+    supabase
+      .from('pos_attention_items')
+      .select('id, kind, message, invoice_id')
+      .eq('company_id', company.id)
+      .is('resolved_at', null)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    supabase.from('pos_settings').select('loyalty_enabled').eq('company_id', company.id).maybeSingle(),
   ])
 
   const onboardingSkipped = (await cookies()).get('onboarding_skipped')?.value === params.slug
@@ -61,14 +75,6 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
   // Show the FURS reminder banner whenever there's no active certificate yet —
   // until then invoices are issued in FURS test mode.
   const showFursBanner = (activeCertCount ?? 0) === 0
-
-  const { data: attentionItems } = await supabase
-    .from('pos_attention_items')
-    .select('id, kind, message, invoice_id')
-    .eq('company_id', company.id)
-    .is('resolved_at', null)
-    .order('created_at', { ascending: false })
-    .limit(20)
 
   // All day/month boundaries are Slovenian local time (the server runs in UTC).
   const todayStr = ljDateString()
@@ -84,7 +90,12 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
   // Fetch from the earliest boundary we need so today/month/prev-month/30-day are all computed in JS.
   const statsFrom = prevMonthStart < thirtyStart ? prevMonthStart : thirtyStart
 
-  const [{ data: statInvoices }, { data: recentInvoices }, { data: pendingAppointments }] = await Promise.all([
+  const [
+    { data: statInvoices },
+    { data: recentInvoices },
+    { data: pendingAppointments },
+    { data: loyaltyRows },
+  ] = await Promise.all([
     supabase
       .from('pos_invoices')
       .select('total, payment_method, status, invoice_date')
@@ -103,29 +114,30 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
       .eq('Status', 'completed')
       .is('ID računa', null)
       .limit(100),
+    // Only needed when the loyalty programme is on.
+    loyaltySettings?.loyalty_enabled
+      ? supabase.from('pos_loyalty_points').select('client_email, points').eq('company_id', company.id)
+      : Promise.resolve({ data: null }),
   ])
 
-  const { data: invoicedAppts } = await supabase
-    .from('pos_invoices')
-    .select('appointment_id')
-    .eq('company_id', company.id)
-    .not('appointment_id', 'is', null)
+  // Of the (max 100) completed appointments still without an invoice link, which
+  // already have an invoice? Looks only at those ids — the old query read EVERY
+  // invoice ever issued with an appointment on every dashboard load.
+  const pendingIds = (pendingAppointments ?? []).map((a) => String(a.id))
+  const { data: invoicedAppts } = pendingIds.length
+    ? await supabase
+        .from('pos_invoices')
+        .select('appointment_id')
+        .eq('company_id', company.id)
+        .in('appointment_id', pendingIds)
+    : { data: [] as Array<{ appointment_id: string | null }> }
 
   const invoicedIds = new Set((invoicedAppts ?? []).map((i) => i.appointment_id))
   const uninvoicedCount = (pendingAppointments ?? []).filter((a) => !invoicedIds.has(a.id)).length
 
   // Loyalty: count distinct clients with a positive balance (only if enabled).
-  const { data: loyaltySettings } = await supabase
-    .from('pos_settings')
-    .select('loyalty_enabled')
-    .eq('company_id', company.id)
-    .maybeSingle()
   let loyaltyClientCount = 0
   if (loyaltySettings?.loyalty_enabled) {
-    const { data: loyaltyRows } = await supabase
-      .from('pos_loyalty_points')
-      .select('client_email, points')
-      .eq('company_id', company.id)
     const balances = new Map<string, number>()
     for (const r of loyaltyRows ?? []) {
       balances.set(r.client_email, (balances.get(r.client_email) ?? 0) + (r.points as number))

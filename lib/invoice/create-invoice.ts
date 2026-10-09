@@ -70,9 +70,11 @@ export class InvoiceValidationError extends Error {
  * this as "already processed" rather than a hard failure.
  */
 export class DuplicateInvoiceError extends Error {
-  constructor(message: string) {
+  existingInvoiceId: string | null
+  constructor(message: string, existingInvoiceId: string | null = null) {
     super(message)
     this.name = 'DuplicateInvoiceError'
+    this.existingInvoiceId = existingInvoiceId
   }
 }
 
@@ -110,6 +112,20 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
   } = input
 
   const supabase = createServiceClient()
+
+  // One invoice per appointment / payment — checked BEFORE a number is drawn and
+  // before FURS is called. The unique index only fires at the final insert, by
+  // which time the invoice would already be fiscalized at FURS with nothing
+  // stored here.
+  if (appointmentId || stripePaymentIntentId) {
+    const existing = await findExistingInvoice({ companyId, appointmentId, stripePaymentIntentId })
+    if (existing) {
+      throw new DuplicateInvoiceError(
+        `Za ta termin je račun ${existing.invoiceNumber} že izdan`,
+        existing.invoiceId
+      )
+    }
+  }
 
   const [{ data: settings }, { data: premise }, { data: device }] = await Promise.all([
     supabase
