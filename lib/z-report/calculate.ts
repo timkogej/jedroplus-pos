@@ -51,13 +51,15 @@ interface InvoiceRow {
   total: number | null
   payment_method: string | null
   status: string | null
+  is_storno?: boolean | null
   vat_rate: number | null
   vat_amount: number | null
   pos_invoice_items?: InvoiceItemRow[] | null
 }
 
 /** Revenue counts everything except cancellation (storno) and legacy cancels. */
-const isRevenue = (status: string | null) => status !== 'storno' && status !== 'cancelled'
+const isStornoRow = (r: InvoiceRow) => r.is_storno === true || r.status === 'storno'
+const isRevenue = (r: InvoiceRow) => !isStornoRow(r) && r.status !== 'cancelled'
 
 /**
  * Reads all of a company's invoices for `reportDate` and computes the Z-report
@@ -72,14 +74,14 @@ export async function computeZReportTotals(
 
   const { data } = await supabase
     .from('pos_invoices')
-    .select('total, payment_method, status, vat_rate, vat_amount, pos_invoice_items(vat_rate, vat_amount, total)')
+    .select('total, payment_method, status, is_storno, vat_rate, vat_amount, pos_invoice_items(vat_rate, vat_amount, total)')
     .eq('company_id', companyId)
     .gte('invoice_date', start)
     .lt('invoice_date', end)
 
   const rows = (data ?? []) as InvoiceRow[]
-  const revenueRows = rows.filter((r) => isRevenue(r.status))
-  const stornoRows = rows.filter((r) => r.status === 'storno')
+  const revenueRows = rows.filter(isRevenue)
+  const stornoRows = rows.filter(isStornoRow)
 
   const sumTotal = (arr: InvoiceRow[]) => arr.reduce((s, r) => s + (r.total ?? 0), 0)
   const byMethod = (method: string) =>

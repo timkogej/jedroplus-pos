@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import * as XLSX from 'xlsx'
+import { invoiceDateRange } from '@/lib/dateRange'
 import type { PosInvoice, PosInvoiceItem } from '@/types'
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -17,6 +18,9 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Storniran',
   storno_original: 'Storniran',
   storno: 'Storno',
+  pending_furs: 'Čaka potrditev FURS',
+  furs_failed: 'FURS potrditev ni uspela',
+  storno_pending: 'Storno v teku',
 }
 
 type ExportInvoice = PosInvoice & { pos_invoice_items?: PosInvoiceItem[] }
@@ -35,6 +39,24 @@ function fmtTime(iso: string): string {
 
 function itemsByRate(items: PosInvoiceItem[], rate: number): PosInvoiceItem[] {
   return items.filter((i) => i.vat_rate === rate)
+}
+
+/**
+ * Item rows hold pre-discount gross prices. Scale them to what the invoice
+ * actually charged (manual discount / loyalty points) so the VAT breakdown adds
+ * up to the invoice total.
+ */
+function scaledItems(inv: ExportInvoice): PosInvoiceItem[] {
+  const items = inv.pos_invoice_items ?? []
+  const gross = items.reduce((s, i) => s + (i.total ?? 0), 0)
+  if (items.length === 0 || gross === 0) return items
+  const scale = inv.total / gross
+  if (Math.abs(scale - 1) < 1e-9) return items
+  return items.map((i) => ({
+    ...i,
+    total: i.total * scale,
+    vat_amount: i.vat_amount != null ? i.vat_amount * scale : i.vat_amount,
+  }))
 }
 
 function sumItemBase(items: PosInvoiceItem[]): number {
@@ -88,8 +110,9 @@ export async function POST(req: NextRequest) {
     .eq('company_id', companyId)
     .order('invoice_date', { ascending: true })
 
-  if (dateFrom) query = query.gte('invoice_date', `${dateFrom}T00:00:00`)
-  if (dateTo) query = query.lte('invoice_date', `${dateTo}T23:59:59`)
+  const range = invoiceDateRange(dateFrom, dateTo)
+  if (range.from) query = query.gte('invoice_date', range.from)
+  if (range.to) query = query.lt('invoice_date', range.to)
 
   const { data, error } = await query
   if (error) {
@@ -106,7 +129,7 @@ export async function POST(req: NextRequest) {
   ]]
 
   for (const inv of invoices) {
-    const items = inv.pos_invoice_items ?? []
+    const items = scaledItems(inv)
 
     let base22 = 0, vat22 = 0
     let base9 = 0, vat9 = 0
@@ -159,7 +182,7 @@ export async function POST(req: NextRequest) {
   }
 
   for (const inv of invoices) {
-    const items = inv.pos_invoice_items ?? []
+    const items = scaledItems(inv)
     if (items.length > 0) {
       for (const [rate, key] of [[22, '22'], [9.5, '9.5'], [0, '0']] as [number, string][]) {
         const grp = itemsByRate(items, rate)

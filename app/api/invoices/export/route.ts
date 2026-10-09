@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import type { PosInvoice, PosInvoiceItem } from '@/types'
+import { invoiceDateRange } from '@/lib/dateRange'
+import { ljParts } from '@/lib/time'
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: 'Gotovina',
@@ -16,11 +18,18 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Storniran',
   storno_original: 'Storniran',
   storno: 'Storno',
+  pending_furs: 'Čaka potrditev FURS',
+  furs_failed: 'FURS potrditev ni uspela',
+  storno_pending: 'Storno v teku',
 }
 
 /** Quote a CSV cell per RFC 4180 (double quotes, escape embedded quotes). */
 function cell(value: unknown): string {
-  const s = value === null || value === undefined ? '' : String(value)
+  let s = value === null || value === undefined ? '' : String(value)
+  // CSV/Excel formula injection: a customer name like "=HYPERLINK(...)" would be
+  // executed when the accountant opens the file. Neutralise text that starts like
+  // a formula (numbers such as -12.50 are left alone).
+  if (/^[=+\-@\t\r]/.test(s) && !/^[-+]?\d+([.,]\d+)?$/.test(s)) s = `'${s}`
   return `"${s.replace(/"/g, '""')}"`
 }
 
@@ -48,8 +57,9 @@ export async function GET(req: NextRequest) {
     .eq('company_id', companyId)
     .order('invoice_date', { ascending: true })
 
-  if (dateFrom) query = query.gte('invoice_date', `${dateFrom}T00:00:00`)
-  if (dateTo) query = query.lte('invoice_date', `${dateTo}T23:59:59`)
+  const range = invoiceDateRange(dateFrom, dateTo)
+  if (range.from) query = query.gte('invoice_date', range.from)
+  if (range.to) query = query.lt('invoice_date', range.to)
   if (status !== 'all') query = query.eq('status', status)
   if (paymentMethod !== 'all') query = query.eq('payment_method', paymentMethod)
 
@@ -69,9 +79,10 @@ export async function GET(req: NextRequest) {
   const lines: string[] = [headers.map(cell).join(',')]
 
   for (const inv of invoices) {
-    const d = new Date(inv.invoice_date)
-    const datum = d.toLocaleDateString('sl-SI')
-    const cas = d.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' })
+    const p = ljParts(new Date(inv.invoice_date))
+    const t2 = (n: number) => String(n).padStart(2, '0')
+    const datum = `${t2(p.day)}.${t2(p.month)}.${p.year}`
+    const cas = `${t2(p.hour)}:${t2(p.minute)}`
     const items = inv.pos_invoice_items ?? []
     // Combine services into one cell; compute base/vat across the invoice.
     const storitev = items.map((i) => i.description).join('; ')
