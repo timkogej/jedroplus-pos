@@ -20,7 +20,10 @@ export interface ResolvedCompany {
  */
 export async function resolveCompanyForUser(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  // Pass { branding: false } when only the slug is needed (login): it saves a
+  // database round trip, and the display name is loaded by the layout anyway.
+  opts: { branding?: boolean } = {}
 ): Promise<ResolvedCompany | null> {
   // Step 1: profiles where id = userId → default_company_id
   const { data: profile, error: profileError } = await supabase
@@ -52,15 +55,16 @@ export async function resolveCompanyForUser(
 
   // Step 3: Podatki podjetij where ID Podjetja = default_company_id
   let displayName = company.name
-  const { data: branding, error: brandingError } = await supabase
-    .from('Podatki podjetij')
-    .select('"Naziv Podjetja"')
-    .eq('ID Podjetja', companyId)
-    .maybeSingle()
+  if (opts.branding !== false) {
+    const { data: branding } = await supabase
+      .from('Podatki podjetij')
+      .select('"Naziv Podjetja"')
+      .eq('ID Podjetja', companyId)
+      .maybeSingle()
 
-
-  if (branding?.['Naziv Podjetja']) {
-    displayName = branding['Naziv Podjetja'] as string
+    if (branding?.['Naziv Podjetja']) {
+      displayName = branding['Naziv Podjetja'] as string
+    }
   }
 
 

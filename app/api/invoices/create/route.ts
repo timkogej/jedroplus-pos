@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createInvoice, InvoiceValidationError } from '@/lib/invoice/create-invoice'
+import { createInvoice, InvoiceValidationError, DuplicateInvoiceError } from '@/lib/invoice/create-invoice'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitDb } from '@/lib/rate-limit'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
 import { withVatExemptNote } from '@/lib/invoice/vat'
 import { signedPdfUrl } from '@/lib/invoice/storage'
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     if ('response' in auth) return auth.response
 
     // --- Rate limit: max 30 invoices/min per company -----------------------
-    if (!rateLimit(`invoices:create:${companyId}`, 30, 60_000)) {
+    if (!(await rateLimitDb(`invoices:create:${companyId}`, 30, 60_000))) {
       return NextResponse.json({ error: 'Preveč zahtev. Poskusite čez minuto.' }, { status: 429 })
     }
 
@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
     assertUuid(deviceId, 'napravo')
     assertPaymentMethod(paymentMethod)
     assertInvoiceItems(items)
+    if (appointmentId != null && !/^[A-Za-z0-9_-]{1,64}$/.test(String(appointmentId))) {
+      throw new ValidationError('Neveljaven termin')
+    }
     if (clientEmail && !isValidEmail(clientEmail)) {
       throw new ValidationError('Neveljaven e-poštni naslov')
     }
@@ -143,6 +146,12 @@ export async function POST(req: NextRequest) {
       vatRate: totals.vatRate,
     })
   } catch (err: unknown) {
+    if (err instanceof DuplicateInvoiceError) {
+      return NextResponse.json(
+        { error: err.message, code: 'duplicate_invoice', existingInvoiceId: err.existingInvoiceId },
+        { status: 409 }
+      )
+    }
     if (err instanceof InvoiceValidationError || err instanceof ValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 })
     }

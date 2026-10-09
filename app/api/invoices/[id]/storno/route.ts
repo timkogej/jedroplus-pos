@@ -8,6 +8,7 @@ import { ljDateString } from '@/lib/time'
 import { formatDateForZoi } from '@/lib/furs/zoi'
 import { FursError, type FursInvoiceRequest } from '@/lib/furs/types'
 import { generateInvoiceNumber } from '@/lib/invoice/generate'
+import { requiresFursConfirmation, FURS_NOT_REQUIRED } from '@/lib/furs/requirement'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
 import { reversePointsForStorno } from '@/lib/loyalty/award'
@@ -123,11 +124,16 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       yearFormat:   (settings?.invoice_year_format   ?? 'full') as 'full' | 'short',
     }
 
+    // A storno follows its original: bank-transfer invoices were never sent to
+    // FURS, so their storno isn't either (and uses the non-fiscal number series).
+    const fiscal = Boolean(original.zoi) || requiresFursConfirmation(original.payment_method)
+
     const { invoiceNumber: stornoNumber, counter: stornoCounter } = await generateInvoiceNumber(
       companyId,
       formatConfig,
       premise.premise_id,
       device.device_id,
+      fiscal ? 'fiscal' : 'nonfiscal',
     )
 
     // Negative amounts for storno
@@ -137,12 +143,14 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     const stornoDiscount  = -(original.discount_amount)
     const originalItems = (original.pos_invoice_items ?? []) as PosInvoiceItem[]
 
-    let zoi: string
+    let zoi: string | null = null
     let eor: string | null = null
     let isDemoMode = false
     let fursError: string | null = null
 
-    if (!certRow) {
+    if (!fiscal) {
+      // Nothing to confirm with FURS.
+    } else if (!certRow) {
       if (environment !== 'test') {
         await releaseClaim()
         return NextResponse.json({ error: 'Certifikat ni naložen' }, { status: 400 })
@@ -215,13 +223,13 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
         vat_amount:       stornoVat,
         total:            stornoTotal,
         payment_method:   original.payment_method,
-        status:           eor ? 'storno' : 'pending_furs',
+        status:           !fiscal || eor ? 'storno' : 'pending_furs',
         is_storno:        true,
         storno_of:        original.id,
         zoi,
         eor,
         furs_confirmed_at: eor ? issueDate.toISOString() : null,
-        furs_response:    isDemoMode ? { demo: true } : { error: fursError },
+        furs_response:    !fiscal ? FURS_NOT_REQUIRED : isDemoMode ? { demo: true } : { error: fursError },
         notes:            `Storno računa ${original.invoice_number}`,
       })
       .select()

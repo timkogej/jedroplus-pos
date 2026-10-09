@@ -133,6 +133,8 @@ export interface BusinessPremiseRequest {
   cadastralData?: FursCadastralData
   softwareSupplierTaxNumber: string
   validityDate: string // "YYYY-MM-DD"
+  /** Permanent closure of the premise (fu:ClosingTag = "Z"). */
+  closing?: boolean
 }
 
 /**
@@ -187,8 +189,10 @@ export function buildBusinessPremiseRequestXml(req: BusinessPremiseRequest): Bui
     bpIdentifier.ele('fu:MovableBP').txt(req.businessPremiseId)
   }
 
+  premise.ele('fu:ValidityDate').txt(req.validityDate).up()
+  // Possible value is "Z" — after it FURS accepts no more invoices of this premise.
+  if (req.closing) premise.ele('fu:ClosingTag').txt('Z').up()
   premise
-    .ele('fu:ValidityDate').txt(req.validityDate).up()
     .ele('fu:SoftwareSupplier')
       .ele('fu:TaxNumber').txt(req.softwareSupplierTaxNumber)
 

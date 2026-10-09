@@ -2,12 +2,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { pdf } from '@react-pdf/renderer'
+import { renderInvoicePdfBlob } from '@/lib/invoice/clientPdf'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import Modal from '@/components/ui/Modal'
-import InvoicePDF from '@/components/invoice/InvoicePDF'
 import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
@@ -185,7 +184,18 @@ export default function InvoiceForm({
     setItems((prev) => prev.filter((_, i) => i !== index))
   }
 
+  // Once an invoice exists the form is spent: leaving it open and pressing the
+  // button again would try to issue a second invoice for the same appointment.
+  function openIssuedInvoice(id?: string) {
+    const target = id ?? issuedInvoice?.id
+    if (target) router.push(`/${slug}/invoices/${target}`)
+  }
+
   async function handleSubmit() {
+    if (issuedInvoice) {
+      openIssuedInvoice()
+      return
+    }
     setError('')
     if (!premiseId || !deviceId) {
       setError('Izberite poslovni prostor in napravo')
@@ -235,6 +245,11 @@ export default function InvoiceForm({
         }),
       })
       const data = await res.json()
+      if (res.status === 409 && data.code === 'duplicate_invoice' && data.existingInvoiceId) {
+        // Already issued (double click, back button, second tab): show it.
+        router.push(`/${slug}/invoices/${data.existingInvoiceId}`)
+        return
+      }
       if (!res.ok) throw new Error(data.error || 'Napaka pri izstavitvi')
 
       setIssuedInvoice({
@@ -305,12 +320,10 @@ export default function InvoiceForm({
     } catch {
       // fallback to client-side generation
       if (!issuedInvoice.invoiceRecord) return
-      const blob = await pdf(
-        <InvoicePDF
-          invoice={issuedInvoice.invoiceRecord as PosInvoice & { pos_invoice_items?: PosInvoiceItem[] }}
-          companyName={companyName}
-        />
-      ).toBlob()
+      const blob = await renderInvoicePdfBlob(
+        issuedInvoice.invoiceRecord as PosInvoice & { pos_invoice_items?: PosInvoiceItem[] },
+        companyName
+      )
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 30000)
@@ -418,7 +431,13 @@ export default function InvoiceForm({
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Podrobnosti računa</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Input label="Datum" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
+          <Input
+            label="Datum izdaje"
+            type="date"
+            value={invoiceDate}
+            disabled
+            hint="Račun se vedno izda z današnjim datumom."
+          />
           <Select
             label="Plačilni način"
             options={PAYMENT_OPTIONS}
@@ -699,6 +718,13 @@ export default function InvoiceForm({
         </div>
       )}
 
+      {paymentMethod === 'transfer' && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+          Račun, plačan z nakazilom na transakcijski račun, se ne potrjuje pri FURS (nima ZOI/EOR in QR kode).
+          Ima ločeno številčenje z oznako <strong>N</strong> v številki računa.
+        </div>
+      )}
+
       {emailWarning && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 flex items-center gap-2">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -708,12 +734,19 @@ export default function InvoiceForm({
         </div>
       )}
 
-      <Button onClick={handleSubmit} loading={loading} size="lg" className="w-full">
-        Potrdi in izstavi račun
+      <Button onClick={handleSubmit} loading={loading} disabled={loading} size="lg" className="w-full">
+        {issuedInvoice ? 'Račun je izdan — odpri račun' : 'Potrdi in izstavi račun'}
       </Button>
 
       {/* Delivery modal */}
-      <Modal open={deliveryModal} onClose={() => setDeliveryModal(false)} title="Dostava računa">
+      <Modal
+        open={deliveryModal}
+        onClose={() => {
+          setDeliveryModal(false)
+          openIssuedInvoice()
+        }}
+        title="Dostava računa"
+      >
         <div className="space-y-3">
           <p className="text-sm text-gray-600">Kako želite dostaviti račun?</p>
 
@@ -792,7 +825,15 @@ export default function InvoiceForm({
       </Modal>
 
       {/* Print format modal */}
-      <Modal open={printFormatModal} onClose={() => setPrintFormatModal(false)} title="Oblika tiskanja" size="sm">
+      <Modal
+        open={printFormatModal}
+        onClose={() => {
+          setPrintFormatModal(false)
+          openIssuedInvoice()
+        }}
+        title="Oblika tiskanja"
+        size="sm"
+      >
         <div className="space-y-3">
           <p className="text-sm text-gray-600">Izberite obliko tiskanja:</p>
           <div className="grid grid-cols-1 gap-2">

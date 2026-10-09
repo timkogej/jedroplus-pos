@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { registerBusinessPremise, getFursEnvironment } from '@/lib/furs/api'
 import { FursError } from '@/lib/furs/types'
+import { buildPremiseSubmission, type PremiseRow } from '@/lib/furs/premise'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 
 export async function POST(req: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     const supabase = createServiceClient()
     const { data: premise } = await supabase
       .from('pos_premises')
-      .select('id, premise_id, premise_type, address, house_number, house_number_additional, city, postal_code, cadastral_number, building_number, building_section_number')
+      .select('*')
       .eq('id', premiseId)
       .eq('company_id', companyId)
       .single()
@@ -25,59 +26,20 @@ export async function POST(req: NextRequest) {
     if (!premise) {
       return NextResponse.json({ error: 'Poslovni prostor ni najden' }, { status: 404 })
     }
+    if (premise.furs_closed) {
+      return NextResponse.json({ error: 'Prostor je pri FURS trajno zaprt' }, { status: 400 })
+    }
 
-    let address: import('@/lib/furs/xml').FursPremiseAddress | undefined
-    let cadastralData: import('@/lib/furs/xml').FursCadastralData | undefined
-    if (premise.premise_type !== 'movable') {
-      let street = premise.address ?? ''
-      let houseNumber = premise.house_number ?? ''
-      let houseNumberAdditional = premise.house_number_additional ?? undefined
-
-      // Legacy rows store the whole address in one string ("Prešernova cesta 21A")
-      if (!houseNumber) {
-        const match = street.match(/^(.+?)\s+(\d+)([A-Za-z]?)\s*$/)
-        if (match) {
-          street = match[1]
-          houseNumber = match[2]
-          houseNumberAdditional = match[3] || undefined
-        }
-      }
-
-      if (!street || !houseNumber || !premise.city || !premise.postal_code) {
-        return NextResponse.json(
-          { error: 'Za registracijo pri FURS prostor potrebuje ulico, hišno številko, mesto in poštno številko' },
-          { status: 400 }
-        )
-      }
-
-      address = {
-        street,
-        houseNumber,
-        houseNumberAdditional,
-        community: premise.city, // naselje ni ločeno shranjen — FURS zahteva vrednost
-        city: premise.city,
-        postalCode: premise.postal_code,
-      }
-
-      if (premise.cadastral_number && premise.building_number && premise.building_section_number) {
-        cadastralData = {
-          cadastralNumber: premise.cadastral_number,
-          buildingNumber: premise.building_number,
-          buildingSectionNumber: premise.building_section_number,
-        }
-      } else if ((await getFursEnvironment(companyId)) === 'production') {
-        // Without real cadastral data the XML builder falls back to 1/1/1 — fine
-        // for the FURS test environment, but it would register false data with
-        // the tax authority in production.
-        return NextResponse.json(
-          { error: 'Za registracijo v produkciji vnesite katastrsko občino, številko stavbe in del stavbe (e-prostor.gov.si).' },
-          { status: 400 }
-        )
-      }
+    const submission = buildPremiseSubmission(
+      premise as PremiseRow,
+      await getFursEnvironment(companyId)
+    )
+    if (!submission.ok) {
+      return NextResponse.json({ error: submission.error }, { status: 400 })
     }
 
     try {
-      await registerBusinessPremise(companyId, premise.premise_id, address, cadastralData)
+      await registerBusinessPremise(companyId, premise.premise_id, submission.address, submission.cadastralData)
     } catch (err) {
       const message = err instanceof FursError ? err.message : 'Napaka pri registraciji pri FURS'
       return NextResponse.json({ error: message }, { status: 502 })

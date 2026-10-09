@@ -94,3 +94,55 @@ describe('companies that are not VAT payers', () => {
     expect(xml).toContain('<fu:ProtectedID>')
   })
 })
+
+describe('business premise closure', () => {
+  const premiseReq = {
+    taxNumber: '12345678',
+    businessPremiseId: 'PS1',
+    address: { street: 'Slovenska cesta', houseNumber: '1', community: 'Ljubljana', city: 'Ljubljana', postalCode: '1000' },
+    softwareSupplierTaxNumber: '24564444',
+    validityDate: '2026-10-09',
+  }
+
+  it('adds ClosingTag Z after ValidityDate, before SoftwareSupplier', async () => {
+    const { buildBusinessPremiseRequestXml } = await import('@/lib/furs/xml')
+    const { xml } = buildBusinessPremiseRequestXml({ ...premiseReq, closing: true })
+    expect(xml).toContain('<fu:ClosingTag>Z</fu:ClosingTag>')
+    expect(xml.indexOf('fu:ValidityDate')).toBeLessThan(xml.indexOf('fu:ClosingTag'))
+    expect(xml.indexOf('fu:ClosingTag')).toBeLessThan(xml.indexOf('fu:SoftwareSupplier'))
+  })
+
+  it('does not close when registering', async () => {
+    const { buildBusinessPremiseRequestXml } = await import('@/lib/furs/xml')
+    const { xml } = buildBusinessPremiseRequestXml(premiseReq)
+    expect(xml).not.toContain('ClosingTag')
+  })
+})
+
+describe('premise submission data', () => {
+  const base = {
+    premise_type: 'premises', address: 'Slovenska cesta 1', house_number: null, house_number_additional: null,
+    city: 'Ljubljana', postal_code: '1000', cadastral_number: null, building_number: null, building_section_number: null,
+  }
+
+  it('requires real cadastral data in production only', async () => {
+    const { buildPremiseSubmission } = await import('@/lib/furs/premise')
+    expect(buildPremiseSubmission(base, 'test').ok).toBe(true)
+    expect(buildPremiseSubmission(base, 'production').ok).toBe(false)
+    expect(
+      buildPremiseSubmission({ ...base, cadastral_number: '1938', building_number: '2306', building_section_number: '1' }, 'production').ok
+    ).toBe(true)
+  })
+
+  it('splits a legacy single-line address', async () => {
+    const { buildPremiseSubmission } = await import('@/lib/furs/premise')
+    const r = buildPremiseSubmission({ ...base, address: 'Prešernova cesta 21A' }, 'test')
+    expect(r.ok && r.address?.houseNumber).toBe('21')
+    expect(r.ok && r.address?.houseNumberAdditional).toBe('A')
+  })
+
+  it('movable premises need no address', async () => {
+    const { buildPremiseSubmission } = await import('@/lib/furs/premise')
+    expect(buildPremiseSubmission({ ...base, premise_type: 'movable', address: null }, 'production')).toEqual({ ok: true })
+  })
+})

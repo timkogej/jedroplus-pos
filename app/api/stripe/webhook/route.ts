@@ -10,6 +10,7 @@ import {
 } from '@/lib/invoice/create-invoice'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
 import { raiseAttention } from '@/lib/attention'
+import { revalidateTag } from 'next/cache'
 
 // Stripe needs the RAW request body to verify the signature, so this route must
 // never run through a JSON body parser. In the App Router `await req.text()`
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
       // in `subscription` mode, so it's handled separately from booking payments.
       if (session.mode === 'subscription') {
         await handleSubscriptionCheckout(session)
+        revalidateTag('layout-data') // the layout caches the subscription for 60 s
         return NextResponse.json({ received: true })
       }
 
@@ -95,6 +97,7 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
         await handleSubscriptionEvent(event.type, event.data.object as Stripe.Subscription)
+        revalidateTag('layout-data')
         return NextResponse.json({ received: true })
 
       case 'charge.refunded':
@@ -104,6 +107,7 @@ export async function POST(req: NextRequest) {
       case 'invoice.payment_succeeded':
       case 'invoice.payment_failed':
         await handleInvoiceEvent(event.type, event.data.object as Stripe.Invoice)
+        revalidateTag('layout-data')
         return NextResponse.json({ received: true })
     }
 

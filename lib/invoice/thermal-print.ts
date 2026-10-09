@@ -1,4 +1,6 @@
 import type { PosInvoice, PosInvoiceItem } from '@/types'
+import { authFetch } from '@/lib/authFetch'
+import { buildFursQrCode } from '@/lib/furs/qr'
 
 interface ThermalPrintOptions {
   invoice: PosInvoice & { pos_invoice_items?: PosInvoiceItem[] }
@@ -49,15 +51,25 @@ export async function printThermal(opts: ThermalPrintOptions): Promise<void> {
   const cas = invDate.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' })
   const printedAt = new Date().toLocaleString('sl-SI')
 
-  const qrContent = invoice.zoi
-    ? `https://blagajne.fu.gov.si/0/${invoice.zoi}`
-    : invoice.eor ?? invoice.invoice_number
+  // Official FURS verification code (60 digits). The server knows the tax number
+  // (it is in the certificate); fall back to the one passed in, if any.
+  let qrContent: string = invoice.zoi ?? invoice.invoice_number
+  try {
+    if (!invoice.zoi) throw new Error('no zoi')
+    const res = await authFetch(`/api/invoices/${invoice.id}/qr`)
+    const json = (await res.json()) as { code?: string | null }
+    if (json.code) qrContent = json.code
+  } catch {
+    const local = buildFursQrCode(invoice.zoi, taxNumber, new Date(invoice.invoice_date))
+    if (local) qrContent = local
+  }
 
   // Generated locally: no third party sees the ZOI, and it works offline.
   let qrUrl = ''
   try {
+    if (!invoice.zoi) throw new Error('no zoi') // not fiscalized: no QR code
     const QRCode = (await import('qrcode')).default
-    qrUrl = await QRCode.toDataURL(qrContent, { type: 'image/png', width: 150, margin: 1 })
+    qrUrl = await QRCode.toDataURL(qrContent, { type: 'image/png', width: 240, margin: 2, errorCorrectionLevel: 'L' })
   } catch {
     // receipt still prints without the QR code
   }
@@ -107,7 +119,7 @@ export async function printThermal(opts: ThermalPrintOptions): Promise<void> {
     font-size: 10px;
     margin: 6px 0;
   }
-  img.qr { display: block; margin: 6px auto; width: 150px; height: 150px; }
+  img.qr { display: block; margin: 6px auto; width: 150px; height: 150px; image-rendering: pixelated; }
   .test { color: #c00; }
   @media print {
     body { width: 72mm; }
@@ -153,14 +165,14 @@ export async function printThermal(opts: ThermalPrintOptions): Promise<void> {
 
   <div class="line"></div>
 
-  ${invoice.zoi ? `<div class="small">ZOI: ${e(shortenCode(invoice.zoi, 8))}</div>` : ''}
-  ${invoice.eor ? `<div class="small">EOR: ${e(shortenCode(invoice.eor, 8))}</div>` : ''}
+  ${invoice.zoi ? `<div class="small" style="word-break:break-all;">ZOI: ${e(invoice.zoi)}</div>` : ''}
+  ${invoice.eor ? `<div class="small" style="word-break:break-all;">EOR: ${e(invoice.eor)}</div>` : ''}
 
   ${qrUrl ? `<img class="qr" src="${qrUrl}" alt="QR" />` : ''}
 
   <div class="line"></div>
 
-  <div class="center small">${invoice.eor ? 'Račun potrjen pri FURS' : 'Potrditev pri FURS je v teku'}</div>
+  <div class="center small">${!invoice.zoi ? 'Račun ni predmet davčnega potrjevanja' : invoice.eor ? 'Račun potrjen pri FURS' : 'Potrditev pri FURS je v teku'}</div>
   ${isDemo ? `<div class="center bold small test">** TESTNI NAČIN **</div>` : ''}
   <div class="center bold" style="margin-top:4px;">Hvala za obisk!</div>
   <div class="center small" style="margin-top:4px;">Natisnjeno: ${printedAt}</div>

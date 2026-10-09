@@ -6,6 +6,8 @@ import Header from '@/components/layout/Header'
 
 export const revalidate = 0
 
+const PAGE_SIZE = 20
+
 interface StrankaRow {
   'ID stranke': string | null
   Stranka: string | null
@@ -19,46 +21,59 @@ function displayName(r: StrankaRow): string {
   return r.Stranka || `${r.Ime ?? ''} ${r.Priimek ?? ''}`.trim() || '—'
 }
 
-export default async function CustomersPage(
-  props: {
-    params: Promise<{ slug: string }>
-    searchParams: Promise<{ q?: string }>
-  }
-) {
-  const searchParams = await props.searchParams;
-  const params = await props.params;
+export default async function CustomersPage(props: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
+  const searchParams = await props.searchParams
+  const params = await props.params
   const company = await requireCompanyForSlug(params.slug)
   const supabase = createServiceClient()
-  const loyalty = await getLoyaltySettings(supabase, company.id)
 
   // Keep the search term to characters that can't break out of the PostgREST filter.
   const q = (searchParams.q ?? '').replace(/[^A-Za-z0-9@._\-ČŠŽčšžĆćĐđ ]/g, '').trim().slice(0, 60)
+  const page = Math.max(1, Math.min(10_000, parseInt(searchParams.page ?? '1', 10) || 1))
+  const from = (page - 1) * PAGE_SIZE
 
+  // One page of customers + the programme settings, in parallel.
   let query = supabase
     .from('Stranke')
-    .select('"ID stranke", "Stranka", "Ime", "Priimek", "Email stranke", "Telefonska številka"')
+    .select('"ID stranke", "Stranka", "Ime", "Priimek", "Email stranke", "Telefonska številka"', { count: 'exact' })
     .eq('ID Podjetja', company.company_id)
     .order('Zadnja interakcija', { ascending: false, nullsFirst: false })
-    .limit(200)
+    .range(from, from + PAGE_SIZE - 1)
   if (q) {
     query = query.or(
       `"Stranka".ilike.%${q}%,"Email stranke".ilike.%${q}%,"Ime".ilike.%${q}%,"Priimek".ilike.%${q}%`
     )
   }
-  const { data } = await query
-  const customers = (data ?? []) as unknown as StrankaRow[]
 
+  const [loyalty, { data, count }] = await Promise.all([getLoyaltySettings(supabase, company.id), query])
+  const customers = (data ?? []) as unknown as StrankaRow[]
+  const total = count ?? customers.length
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  // Balances only for the (at most 20) customers on screen — not the whole ledger.
   const balances = new Map<string, number>()
   if (loyalty.loyalty_enabled) {
-    const { data: rows } = await supabase
-      .from('pos_loyalty_points')
-      .select('client_email, points')
-      .eq('company_id', company.id)
-    for (const r of rows ?? []) {
-      const key = String(r.client_email).toLowerCase()
-      balances.set(key, (balances.get(key) ?? 0) + (r.points as number))
+    const emails = customers
+      .map((c) => c['Email stranke']?.trim().toLowerCase())
+      .filter((e): e is string => Boolean(e))
+    if (emails.length > 0) {
+      const { data: rows } = await supabase
+        .from('pos_loyalty_points')
+        .select('client_email, points')
+        .eq('company_id', company.id)
+        .in('client_email', emails)
+      for (const r of rows ?? []) {
+        const key = String(r.client_email).toLowerCase()
+        balances.set(key, (balances.get(key) ?? 0) + (r.points as number))
+      }
     }
   }
+
+  const pageHref = (p: number) =>
+    `/${params.slug}/customers?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) }).toString()}`
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -92,45 +107,66 @@ export default async function CustomersPage(
               </p>
             </div>
           ) : (
-            <ul className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
-              {customers.map((c, i) => {
-                const email = c['Email stranke']?.trim().toLowerCase() ?? ''
-                const balance = email ? Math.max(0, balances.get(email) ?? 0) : 0
-                const row = (
-                  <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{displayName(c)}</p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {email || 'brez e-pošte'}
-                        {c['Telefonska številka'] ? ` · ${c['Telefonska številka']}` : ''}
-                      </p>
+            <>
+              <p className="text-xs text-gray-400">
+                {total} {total === 1 ? 'stranka' : 'strank'} · stran {Math.min(page, pageCount)} od {pageCount}
+              </p>
+              <ul className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+                {customers.map((c, i) => {
+                  const email = c['Email stranke']?.trim().toLowerCase() ?? ''
+                  const balance = email ? Math.max(0, balances.get(email) ?? 0) : 0
+                  const row = (
+                    <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{displayName(c)}</p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {email || 'brez e-pošte'}
+                          {c['Telefonska številka'] ? ` · ${c['Telefonska številka']}` : ''}
+                        </p>
+                      </div>
+                      {loyalty.loyalty_enabled && email && (
+                        <span className="flex-shrink-0 rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
+                          {balance} točk
+                        </span>
+                      )}
                     </div>
-                    {loyalty.loyalty_enabled && email && (
-                      <span className="flex-shrink-0 rounded-full bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand">
-                        {balance} točk
-                      </span>
-                    )}
-                  </div>
-                )
-                return (
-                  <li key={c['ID stranke'] ?? i}>
-                    {email ? (
-                      <Link
-                        href={`/${params.slug}/customers/${encodeURIComponent(email)}`}
-                        className="block hover:bg-gray-50 transition-colors"
-                      >
-                        {row}
-                      </Link>
-                    ) : (
-                      row
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          {customers.length === 200 && (
-            <p className="text-xs text-gray-400 text-center">Prikazanih je prvih 200 strank. Zožite iskanje.</p>
+                  )
+                  return (
+                    <li key={c['ID stranke'] ?? i}>
+                      {email ? (
+                        <Link
+                          href={`/${params.slug}/customers/${encodeURIComponent(email)}`}
+                          className="block hover:bg-gray-50 transition-colors"
+                        >
+                          {row}
+                        </Link>
+                      ) : (
+                        row
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+
+              {pageCount > 1 && (
+                <nav className="flex items-center justify-between" aria-label="Strani">
+                  {page > 1 ? (
+                    <Link href={pageHref(page - 1)} className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                      ← Prejšnja
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-gray-300">← Prejšnja</span>
+                  )}
+                  {page < pageCount ? (
+                    <Link href={pageHref(page + 1)} className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                      Naslednja →
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-gray-300">Naslednja →</span>
+                  )}
+                </nav>
+              )}
+            </>
           )}
         </div>
       </main>

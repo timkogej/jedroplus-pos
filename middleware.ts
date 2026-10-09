@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase-config'
+import { accessTokenSecondsLeft } from '@/lib/auth/tokenExpiry'
 
 // Keeps the Supabase session cookie fresh so Server Components can trust
 // auth.getUser(). Actual authorization (is this user allowed to see this
@@ -8,6 +9,12 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase-config'
 // Bearer tokens and are excluded.
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
+
+  // A token that is still valid for a while needs no refresh, so skip the call to
+  // Supabase Auth — it used to run on EVERY navigation and prefetch (one extra
+  // network round trip each time). Without a readable session it falls through.
+  const secondsLeft = accessTokenSecondsLeft(request.cookies.getAll())
+  if (secondsLeft !== null && secondsLeft > 90) return response
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {

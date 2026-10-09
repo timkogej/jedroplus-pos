@@ -6,6 +6,8 @@ import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
 import FursStatusIndicator from '@/components/layout/FursStatusIndicator'
+import NavPending from '@/components/layout/NavPending'
+import { useCompany } from '@/components/layout/CompanyContext'
 
 interface SidebarProps {
   slug: string
@@ -20,6 +22,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const clearCompanyData = usePosStore((s) => s.clearCompanyData)
+  const companyCtx = useCompany()
   const base = `/${slug}`
 
   // Warning badge on "Z-poročilo" when the day isn't closed yet and it's past
@@ -29,8 +32,8 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
     let cancelled = false
     async function check() {
       if (new Date().getHours() < 18) return
-      const { data: company } = await supabase.from('companies').select('id').eq('slug', slug).single()
-      if (!company || cancelled) return
+      const company = { id: companyCtx.id }
+      if (cancelled) return
       const now = new Date()
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       const { data: report } = await supabase
@@ -43,7 +46,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
     }
     check()
     return () => { cancelled = true }
-  }, [slug, pathname])
+  }, [slug, pathname, companyCtx.id])
 
   async function handleLogout() {
     clearCompanyData()
@@ -75,7 +78,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
       label: 'Stranke',
       icon: (
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 100-8 4 4 0 000 8zm6 0a3 3 0 100-6M3 9a3 3 0 106 0" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
         </svg>
       ),
     },
@@ -164,6 +167,7 @@ export default function Sidebar({ slug, companyName }: SidebarProps) {
                   </span>
                 </NavIcon>
                 <span>{item.label}</span>
+                <NavPending />
                 {'badge' in item && item.badge && (
                   <span className="ml-auto w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Blagajna še ni zaključena" />
                 )}

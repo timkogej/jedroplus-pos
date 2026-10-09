@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { useCompany } from '@/components/layout/CompanyContext'
 import { authFetch } from '@/lib/authFetch'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
@@ -25,6 +26,7 @@ const emptyStatus: StatusState = {
 export default function PaymentsSettingsPage() {
   const params = useParams()
   const slug = params.slug as string
+  const companyCtx = useCompany()
 
   const [companyId, setCompanyId] = useState('')
   const [status, setStatus] = useState<StatusState>(emptyStatus)
@@ -43,11 +45,8 @@ export default function PaymentsSettingsPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: company } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('slug', slug)
-        .single()
+      const company: { id: string; name: string } | null = { id: companyCtx.id, name: companyCtx.name }
+      const companyErr: { message?: string } | null = null
       if (!company) {
         setLoading(false)
         return
