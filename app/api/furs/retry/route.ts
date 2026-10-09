@@ -5,9 +5,12 @@ import { buildFursTaxes, singleFursTax } from '@/lib/furs/taxes'
 import { formatDateForZoi } from '@/lib/furs/zoi'
 import type { FursInvoiceRequest } from '@/lib/furs/types'
 
-// The cron runs every 15 minutes, so 192 attempts ≈ 48 hours — the window
-// ZDavPR gives for delayed (SubsequentSubmit) confirmation.
-const MAX_RETRIES = 192
+// Give up on an invoice once it has been waiting this long. Time-based (not a
+// retry count) so it works whatever the call frequency is: vercel.json only
+// schedules a daily run (Hobby plan limit); for faster retries call this
+// endpoint every ~15 min from an external scheduler (e.g. n8n) with the
+// CRON_SECRET bearer token.
+const MAX_AGE_MS = 72 * 60 * 60 * 1000
 // An invoice claimed by one run is not picked up by another for this long.
 const CLAIM_TTL_MS = 10 * 60 * 1000
 
@@ -21,7 +24,7 @@ const CLAIM_TTL_MS = 10 * 60 * 1000
  *
  * Re-submits every 'pending_furs' invoice (issued while FURS was unreachable)
  * with SubsequentSubmit=true. On success the invoice gets its EOR and goes
- * back to 'issued' (or 'storno'); after MAX_RETRIES failures → 'furs_failed'.
+ * back to 'issued' (or 'storno'); still failing after 72 h → 'furs_failed'.
  * Each invoice is claimed (furs_last_retry) before submission so overlapping
  * cron runs never double-submit, and the stored ZOI/counter are re-sent as is.
  */
@@ -46,7 +49,6 @@ async function handleRetry(req: NextRequest) {
     .from('pos_invoices')
     .select('id, company_id, invoice_number, invoice_counter, invoice_date, total, vat_rate, vat_amount, zoi, premise_id, device_id, furs_retry_count, is_storno, storno_of')
     .eq('status', 'pending_furs')
-    .lt('furs_retry_count', MAX_RETRIES)
     .limit(50)
 
   const results: Array<{ invoiceId: string; ok: boolean; error?: string }> = []
@@ -141,6 +143,7 @@ async function handleRetry(req: NextRequest) {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown FURS error'
       const newCount = (inv.furs_retry_count ?? 0) + 1
+      const tooOld = Date.now() - new Date(inv.invoice_date).getTime() > MAX_AGE_MS
 
       await supabase
         .from('pos_invoices')
@@ -148,7 +151,7 @@ async function handleRetry(req: NextRequest) {
           furs_retry_count: newCount,
           furs_last_retry: new Date().toISOString(),
           furs_response: { error: message },
-          ...(newCount >= MAX_RETRIES ? { status: 'furs_failed' } : {}),
+          ...(tooOld ? { status: 'furs_failed' } : {}),
         })
         .eq('id', inv.id)
 
