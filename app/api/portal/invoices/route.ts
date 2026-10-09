@@ -3,6 +3,7 @@ import { authenticateCustomer } from '@/lib/auth/customerAuth'
 import { portalCorsHeaders, portalOptions } from '@/lib/portalCors'
 import { createServiceClient } from '@/lib/supabase'
 import { rateLimit } from '@/lib/rate-limit'
+import { signedPdfUrl } from '@/lib/invoice/storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,5 +53,13 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: 'Napaka pri branju računov' }, { status: 500, headers })
 
-  return NextResponse.json({ invoices: invoices ?? [] }, { headers })
+  // The PDF bucket is private: hand out a link that expires after an hour.
+  const withLinks = await Promise.all(
+    (invoices ?? []).map(async (inv) => ({
+      ...inv,
+      pdf_url: await signedPdfUrl(supabase, 'invoices', inv.pdf_url),
+    }))
+  )
+
+  return NextResponse.json({ invoices: withLinks }, { headers })
 }

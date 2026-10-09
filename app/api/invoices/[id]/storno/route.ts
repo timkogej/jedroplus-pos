@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { pdfStorageKey } from '@/lib/invoice/storage'
+import { pdfStorageKey, signedPdfUrl } from '@/lib/invoice/storage'
 import { randomBytes, randomUUID } from 'crypto'
 import { createServiceClient } from '@/lib/supabase'
 import { confirmInvoiceWithFurs } from '@/lib/furs/api'
@@ -343,7 +343,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
       zoi,
       eor,
       isDemoMode,
-      pdfUrl,
+      pdfUrl: await signedPdfUrl(supabase, 'invoices', pdfUrl),
     })
   } catch (err: unknown) {
     await releaseClaim().catch(() => {})

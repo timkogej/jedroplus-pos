@@ -4,6 +4,7 @@ import { requireCompanyAccess } from '@/lib/auth/apiAuth'
 import { rateLimit } from '@/lib/rate-limit'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
 import { withVatExemptNote } from '@/lib/invoice/vat'
+import { signedPdfUrl } from '@/lib/invoice/storage'
 import { createServiceClient } from '@/lib/supabase'
 import { getLoyaltySettings } from '@/lib/loyalty/award'
 import { getPointsBalance } from '@/lib/loyalty/balance'
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
       zoi: result.zoi,
       eor: result.eor,
       isDemoMode: result.isDemoMode,
-      pdfUrl: result.pdfUrl,
+      pdfUrl: await signedPdfUrl(createServiceClient(), 'invoices', result.pdfUrl),
       total: totals.total,
       subtotal: totals.subtotal,
       vatAmount: totals.vatAmount,

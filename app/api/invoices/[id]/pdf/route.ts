@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { generateInvoicePdf } from '@/lib/invoice/pdf-server'
 import { requireInvoiceAccess } from '@/lib/auth/apiAuth'
 import { getInvoiceLoyaltyDisplay } from '@/lib/loyalty/award'
+import { downloadStoredPdf } from '@/lib/invoice/storage'
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -27,9 +28,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
     // regeneration from the stored row cannot reproduce.
     if (invoice.pdf_url) {
       try {
-        const stored = await fetch(invoice.pdf_url)
-        if (stored.ok) {
-          const buf = Buffer.from(await stored.arrayBuffer())
+        const buf = await downloadStoredPdf(supabase, 'invoices', invoice.pdf_url)
+        if (buf) {
           return NextResponse.json({
             base64: buf.toString('base64'),
             filename: `Racun-${invoice.invoice_number}.pdf`,
