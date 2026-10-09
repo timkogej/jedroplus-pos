@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createInvoice, InvoiceValidationError, DuplicateInvoiceError } from '@/lib/invoice/create-invoice'
 import { requireCompanyAccess } from '@/lib/auth/apiAuth'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitDb } from '@/lib/rate-limit'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
 import { withVatExemptNote } from '@/lib/invoice/vat'
 import { signedPdfUrl } from '@/lib/invoice/storage'
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     if ('response' in auth) return auth.response
 
     // --- Rate limit: max 30 invoices/min per company -----------------------
-    if (!rateLimit(`invoices:create:${companyId}`, 30, 60_000)) {
+    if (!(await rateLimitDb(`invoices:create:${companyId}`, 30, 60_000))) {
       return NextResponse.json({ error: 'Preveč zahtev. Poskusite čez minuto.' }, { status: 429 })
     }
 

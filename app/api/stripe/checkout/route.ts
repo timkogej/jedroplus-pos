@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { stripe } from '@/lib/stripe'
-import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { rateLimitDb, getClientIp } from '@/lib/rate-limit'
 
 // The booking frontend lives on a different domain and calls this endpoint
 // directly from the browser, so we need CORS. Allow the configured booking
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   const isEnglish = (lang?: string) => lang === 'en'
 
   // Rate limit: max 20 checkout sessions/min per IP (public, unauthenticated).
-  if (!rateLimit(`stripe:checkout:${getClientIp(req)}`, 20, 60_000)) {
+  if (!(await rateLimitDb(`stripe:checkout:${getClientIp(req)}`, 20, 60_000))) {
     return NextResponse.json(
       { error: 'rate_limited', message: 'Too many requests. / Preveč zahtev.' },
       { status: 429, headers }

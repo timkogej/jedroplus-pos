@@ -8,6 +8,7 @@ import SubscriptionSuccessToast from '@/components/dashboard/SubscriptionSuccess
 import OnboardingCompleteToast from '@/components/dashboard/OnboardingCompleteToast'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
+import { certExpiryStatus } from '@/lib/furs/certExpiry'
 import AttentionBanner from '@/components/dashboard/AttentionBanner'
 import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
@@ -45,7 +46,7 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
   const [
     { data: onboardingCompanyData },
     { count: premiseCount },
-    { count: activeCertCount },
+    { data: activeCerts },
     { data: attentionItems },
     { data: loyaltySettings },
   ] = await Promise.all([
@@ -53,9 +54,10 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
     supabase.from('pos_premises').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
     supabase
       .from('pos_certificates')
-      .select('id', { count: 'exact', head: true })
+      .select('valid_to')
       .eq('company_id', company.id)
-      .eq('is_active', true),
+      .eq('is_active', true)
+      .limit(1),
     supabase
       .from('pos_attention_items')
       .select('id, kind, message, invoice_id')
@@ -74,7 +76,8 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
 
   // Show the FURS reminder banner whenever there's no active certificate yet —
   // until then invoices are issued in FURS test mode.
-  const showFursBanner = (activeCertCount ?? 0) === 0
+  const showFursBanner = (activeCerts?.length ?? 0) === 0
+  const certStatus = certExpiryStatus(activeCerts?.[0]?.valid_to as string | undefined)
 
   // All day/month boundaries are Slovenian local time (the server runs in UTC).
   const todayStr = ljDateString()
@@ -209,6 +212,29 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
             <AttentionBanner items={attentionItems!} companyId={company.id} slug={params.slug} />
           )}
 
+          {certStatus && certStatus.state !== 'ok' && (
+            <div
+              role="alert"
+              className={`flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
+                certStatus.state === 'expired' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
+              }`}
+            >
+              <div>
+                <p className={`text-sm font-semibold ${certStatus.state === 'expired' ? 'text-red-900' : 'text-amber-900'}`}>
+                  {certStatus.state === 'expired'
+                    ? 'FURS certifikat je potekel — računov ni več mogoče potrjevati'
+                    : `FURS certifikat poteče čez ${certStatus.daysLeft} dni`}
+                </p>
+                <p className={`mt-0.5 text-xs ${certStatus.state === 'expired' ? 'text-red-700' : 'text-amber-700'}`}>
+                  Naročite novo potrdilo pri FURS (e-Davki) in ga naložite v nastavitvah.
+                </p>
+              </div>
+              <Link href={`/${params.slug}/settings/certificate`} className="flex-shrink-0">
+                <Button size="sm">Naloži nov certifikat →</Button>
+              </Link>
+            </div>
+          )}
+
           {/* FURS certificate reminder — shown until an active certificate exists */}
           {showFursBanner && (
             <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -339,7 +365,7 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
                 {
                   href: `/${params.slug}/settings/certificate`,
                   label: 'Naložite FURS certifikat',
-                  done: (activeCertCount ?? 0) > 0,
+                  done: (activeCerts?.length ?? 0) > 0,
                 },
                 {
                   href: `/${params.slug}/settings/premises`,

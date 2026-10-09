@@ -4,7 +4,7 @@ import { portalCorsHeaders, portalOptions } from '@/lib/portalCors'
 import { createServiceClient } from '@/lib/supabase'
 import { getLoyaltySettings } from '@/lib/loyalty/award'
 import { getPointsBalance } from '@/lib/loyalty/balance'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitDb } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   if ('response' in auth) return auth.response
   const { customer } = auth
 
-  if (!rateLimit(`portal:loyalty:${customer.userId}`, 60, 60_000)) {
+  if (!(await rateLimitDb(`portal:loyalty:${customer.userId}`, 60, 60_000))) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429, headers })
   }
 

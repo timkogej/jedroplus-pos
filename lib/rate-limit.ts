@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { createServiceClient } from '@/lib/supabase'
 
 /**
  * Tiny in-memory fixed-window rate limiter. Good enough for a single-instance
@@ -20,6 +21,27 @@ export function rateLimit(key: string, maxRequests: number, windowMs: number): b
 
   record.count++
   return true
+}
+
+/**
+ * Shared fixed-window limiter backed by Postgres (rate_limit_hit, migration 029).
+ * Unlike rateLimit() it is shared by every serverless instance, so it really
+ * limits. Returns true while the caller is within the limit. If the database is
+ * unreachable it falls back to the in-memory limiter instead of blocking users.
+ */
+export async function rateLimitDb(key: string, maxRequests: number, windowMs: number): Promise<boolean> {
+  try {
+    const { data, error } = await createServiceClient().rpc('rate_limit_hit', {
+      p_key: key,
+      p_limit: maxRequests,
+      p_window_seconds: Math.max(1, Math.round(windowMs / 1000)),
+    })
+    if (error || typeof data !== 'boolean') throw new Error(error?.message ?? 'unexpected rate_limit_hit result')
+    return data
+  } catch (err) {
+    console.warn('[rate-limit] database limiter unavailable, using in-memory fallback:', err instanceof Error ? err.message : err)
+    return rateLimit(key, maxRequests, windowMs)
+  }
 }
 
 /** Best-effort client IP extraction from common proxy headers. */

@@ -5,6 +5,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/furs/cert-expiry",
+      "schedule": "0 6 * * *"
+    },
+    {
       "path": "/api/z-report/send-reminders",
       "schedule": "0 19 * * *"
     }
