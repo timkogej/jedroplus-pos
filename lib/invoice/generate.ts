@@ -56,19 +56,24 @@ export async function generateInvoiceNumber(
   config: InvoiceFormatConfig = DEFAULT_CONFIG,
   premiseId: string,
   deviceId: string,
+  // 'nonfiscal' = invoices that are not sent to FURS (bank transfer). They have
+  // their own counter and an "N" appended to the prefix, so the fiscalized
+  // series stays free of gaps.
+  series: 'fiscal' | 'nonfiscal' = 'fiscal',
 ): Promise<{ invoiceNumber: string; counter: number }> {
   const supabase = createServiceClient()
   const currentYear = ljYear()
 
-  const { data, error } = await supabase.rpc('increment_invoice_counter', {
-    p_company_id: companyId,
-    p_year: currentYear,
-  })
+  const { data, error } = await supabase.rpc(
+    series === 'fiscal' ? 'increment_invoice_counter' : 'increment_nonfiscal_counter',
+    { p_company_id: companyId, p_year: currentYear }
+  )
 
   if (error) throw new Error(`Failed to generate invoice number: ${error.message}`)
 
   const counter = data as number
-  const invoiceNumber = assembleNumber(config, counter, premiseId, deviceId, currentYear)
+  const effective = series === 'fiscal' ? config : { ...config, prefix: `${config.prefix || 'R'}N` }
+  const invoiceNumber = assembleNumber(effective, counter, premiseId, deviceId, currentYear)
 
   return { invoiceNumber, counter }
 }

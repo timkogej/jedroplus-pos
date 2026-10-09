@@ -434,7 +434,13 @@ export default function InvoiceForm({
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Podrobnosti računa</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Input label="Datum" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
+          <Input
+            label="Datum izdaje"
+            type="date"
+            value={invoiceDate}
+            disabled
+            hint="Račun se vedno izda z današnjim datumom."
+          />
           <Select
             label="Plačilni način"
             options={PAYMENT_OPTIONS}
@@ -712,6 +718,13 @@ export default function InvoiceForm({
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
           {error}
+        </div>
+      )}
+
+      {paymentMethod === 'transfer' && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+          Račun, plačan z nakazilom na transakcijski račun, se ne potrjuje pri FURS (nima ZOI/EOR in QR kode).
+          Ima ločeno številčenje z oznako <strong>N</strong> v številki računa.
         </div>
       )}
 

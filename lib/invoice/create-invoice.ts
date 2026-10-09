@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'crypto'
 import { pdfStorageKey } from '@/lib/invoice/storage'
+import { requiresFursConfirmation, FURS_NOT_REQUIRED } from '@/lib/furs/requirement'
 import { resolveStrankeId } from '@/lib/loyalty/client'
 import { createServiceClient } from '@/lib/supabase'
 import { confirmInvoiceWithFurs } from '@/lib/furs/api'
@@ -81,7 +82,7 @@ export class DuplicateInvoiceError extends Error {
 export interface CreateInvoiceResult {
   invoiceId: string
   invoiceNumber: string
-  zoi: string
+  zoi: string | null
   eor: string | null
   isDemoMode: boolean
   pdfUrl: string | null
@@ -177,7 +178,16 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     throw new InvoiceValidationError('Blagajna za ta dan je že zaključena (Z-poročilo). Računov ni mogoče dodajati.')
   }
 
-  const { invoiceNumber, counter: invoiceCounter } = await generateInvoiceNumber(companyId, formatConfig, premise.premise_id, device.device_id)
+  // Bank-transfer invoices are not cash payments: no FURS, own number series.
+  const fiscal = requiresFursConfirmation(paymentMethod)
+
+  const { invoiceNumber, counter: invoiceCounter } = await generateInvoiceNumber(
+    companyId,
+    formatConfig,
+    premise.premise_id,
+    device.device_id,
+    fiscal ? 'fiscal' : 'nonfiscal'
+  )
 
   const { data: certRow } = await supabase
     .from('pos_certificates')
@@ -186,12 +196,14 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     .eq('is_active', true)
     .maybeSingle()
 
-  let zoi: string
+  let zoi: string | null = null
   let eor: string | null = null
   let isDemoMode = false
   let fursError: string | null = null
 
-  if (!certRow) {
+  if (!fiscal) {
+    // Nothing to confirm: issued as a plain invoice, no ZOI/EOR.
+  } else if (!certRow) {
     // DEMO MODE — no certificate uploaded yet.
     if (environment !== 'test') {
       throw new InvoiceValidationError('Certifikat ni naložen')
@@ -255,11 +267,11 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
       vat_amount: vatAmount,
       total,
       payment_method: paymentMethod,
-      status: eor ? 'issued' : 'pending_furs',
+      status: !fiscal || eor ? 'issued' : 'pending_furs',
       zoi,
       eor,
       furs_confirmed_at: eor ? issueDate.toISOString() : null,
-      furs_response: isDemoMode ? { demo: true } : { error: fursError },
+      furs_response: !fiscal ? FURS_NOT_REQUIRED : isDemoMode ? { demo: true } : { error: fursError },
       notes: notes || null,
       stripe_payment_intent_id: stripePaymentIntentId ?? null,
     })

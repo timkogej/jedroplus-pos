@@ -55,6 +55,7 @@ export async function printThermal(opts: ThermalPrintOptions): Promise<void> {
   // (it is in the certificate); fall back to the one passed in, if any.
   let qrContent: string = invoice.zoi ?? invoice.invoice_number
   try {
+    if (!invoice.zoi) throw new Error('no zoi')
     const res = await authFetch(`/api/invoices/${invoice.id}/qr`)
     const json = (await res.json()) as { code?: string | null }
     if (json.code) qrContent = json.code
@@ -66,6 +67,7 @@ export async function printThermal(opts: ThermalPrintOptions): Promise<void> {
   // Generated locally: no third party sees the ZOI, and it works offline.
   let qrUrl = ''
   try {
+    if (!invoice.zoi) throw new Error('no zoi') // not fiscalized: no QR code
     const QRCode = (await import('qrcode')).default
     qrUrl = await QRCode.toDataURL(qrContent, { type: 'image/png', width: 240, margin: 2, errorCorrectionLevel: 'L' })
   } catch {
@@ -170,7 +172,7 @@ export async function printThermal(opts: ThermalPrintOptions): Promise<void> {
 
   <div class="line"></div>
 
-  <div class="center small">${invoice.eor ? 'Račun potrjen pri FURS' : 'Potrditev pri FURS je v teku'}</div>
+  <div class="center small">${!invoice.zoi ? 'Račun ni predmet davčnega potrjevanja' : invoice.eor ? 'Račun potrjen pri FURS' : 'Potrditev pri FURS je v teku'}</div>
   ${isDemo ? `<div class="center bold small test">** TESTNI NAČIN **</div>` : ''}
   <div class="center bold" style="margin-top:4px;">Hvala za obisk!</div>
   <div class="center small" style="margin-top:4px;">Natisnjeno: ${printedAt}</div>

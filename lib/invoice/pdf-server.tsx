@@ -84,6 +84,8 @@ export async function generateInvoicePdf(opts: PdfGenerateOptions): Promise<Buff
     invoice.invoice_number
   let qrDataUrl: string | null = null
   try {
+    // Invoices that are not confirmed with FURS (bank transfer) carry no QR code.
+    if (!invoice.zoi) throw new Error('no zoi')
     // ISO/IEC 15415 / FURS: error correction level L, quiet zone around the code.
     qrDataUrl = await QRCode.toDataURL(qrContent, { type: 'image/png', width: 240, margin: 2, errorCorrectionLevel: 'L' })
   } catch {
@@ -387,6 +389,12 @@ export async function generateInvoicePdf(opts: PdfGenerateOptions): Promise<Buff
                 )}
               </View>
             </View>
+          )}
+
+          {!invoice.zoi && !invoice.eor && (
+            <Text style={{ fontSize: 8, color: '#6b7280', marginTop: 8 }}>
+              Račun ni predmet davčnega potrjevanja (plačilo z nakazilom na transakcijski račun).
+            </Text>
           )}
 
           {/* Notes */}
