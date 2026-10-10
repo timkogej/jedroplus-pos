@@ -212,7 +212,7 @@ export default function InvoiceForm({
       // fails, nothing is spent. We only describe the discount in the notes here.
       let finalNotes = notes
       if (clampedPoints > 0 && loyaltyEnabled) {
-        const note = `Loyalty popust: -${loyaltyDiscount.toFixed(2)} ${currencySymbol} (${clampedPoints} točk)`
+        const note = `Popust za zvestobne točke: -${loyaltyDiscount.toFixed(2)} ${currencySymbol} (${clampedPoints} točk)`
         finalNotes = finalNotes ? `${finalNotes}\n${note}` : note
       }
 
@@ -693,7 +693,7 @@ export default function InvoiceForm({
           )}
           {loyaltyDiscount > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-green-700">🎁 Loyalty popust ({clampedPoints} točk)</span>
+              <span className="text-green-700">🎁 Popust za zvestobne točke ({clampedPoints} točk)</span>
               <span className="text-green-700 font-medium">-{loyaltyDiscount.toFixed(2)} {currencySymbol}</span>
             </div>
           )}

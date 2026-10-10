@@ -95,7 +95,7 @@ export default async function CustomersPage(props: {
 
           {!loyalty.loyalty_enabled && (
             <p className="text-xs text-gray-500">
-              Loyalty program ni vklopljen — točke se ne prikazujejo.{' '}
+              Program zvestobnih točk ni vklopljen — točke se ne prikazujejo.{' '}
               <Link href={`/${params.slug}/settings/loyalty`} className="text-brand hover:underline">Vklopi</Link>
             </p>
           )}

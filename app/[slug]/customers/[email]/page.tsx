@@ -111,7 +111,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ slug
               </section>
             </>
           ) : (
-            <p className="text-sm text-gray-500">Loyalty program ni vklopljen.</p>
+            <p className="text-sm text-gray-500">Program zvestobnih točk ni vklopljen.</p>
           )}
 
           <section aria-labelledby="inv-h">

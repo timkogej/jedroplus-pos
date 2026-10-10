@@ -172,7 +172,7 @@ export default async function DashboardBody({ company, slug, loyaltyEnabled, pre
           {/* Loyalty */}
           {loyaltyEnabled && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <StatCard label="🎁 Aktivne loyalty stranke" value={String(loyaltyClientCount)} sub="strank s točkami" />
+              <StatCard label="Stranke z zvestobnimi točkami" value={String(loyaltyClientCount)} sub="strank s točkami" />
             </div>
           )}
 

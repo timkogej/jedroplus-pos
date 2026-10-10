@@ -39,7 +39,7 @@ const PLANS = {
       'Neomejeni računi',
       'Več poslovnih prostorov',
       'Darilni boni',
-      'Loyalty točke',
+      'Zvestobne točke',
       'Zaloge in dobavnice',
       'Paketne storitve',
       'Računovodski izvoz',

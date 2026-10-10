@@ -107,7 +107,7 @@ const sections = [
   },
   {
     key: 'loyalty',
-    title: 'Loyalty točke',
+    title: 'Zvestobne točke',
     description: 'Nagrajujte stranke s točkami za vsak nakup',
     Icon: GiftIcon,
   },
