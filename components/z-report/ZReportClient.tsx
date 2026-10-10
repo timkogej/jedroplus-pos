@@ -148,11 +148,11 @@ export default function ZReportClient({
   return (
     <div className="space-y-6">
       {/* Today's status header */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <p className="text-sm font-semibold text-gray-900">{isToday ? 'Današnji dan' : 'Nezaključen dan'}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{dateLong(selectedDate)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{dateLong(selectedDate)}</p>
           </div>
           {todayReport ? (
             <span className="inline-flex items-center gap-2 text-sm font-medium text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
@@ -210,10 +210,10 @@ export default function ZReportClient({
 
       {/* Close day section */}
       {!todayReport ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-5">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">{isToday ? 'Pregled prometa danes' : `Pregled prometa za ${dateShort(selectedDate)}`}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Vrednosti pred zaključkom dneva</p>
+            <p className="text-xs text-gray-500 mt-0.5">Vrednosti pred zaključkom dneva</p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -238,13 +238,13 @@ export default function ZReportClient({
 
           <button
             onClick={() => setModalOpen(true)}
-            className="w-full gradient-bg text-white font-semibold text-sm rounded-xl py-3.5 shadow-sm hover:opacity-95 transition-opacity"
+            className="w-full rounded-xl bg-[#1d1d1f] py-3.5 text-sm font-semibold text-white shadow-sm outline-none transition-colors hover:bg-black focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2"
           >
             Zaključi dan
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
               <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -255,7 +255,7 @@ export default function ZReportClient({
               <p className="text-sm font-semibold text-gray-900">
                 Blagajna zaključena ob {closedTime(todayReport)}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 {formatReportLabel(todayReport.report_date, todayReport.report_number)} · {eur(todayReport.total_revenue)} · {todayReport.total_invoices} računov
               </p>
             </div>
@@ -275,11 +275,11 @@ export default function ZReportClient({
       <div>
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Pretekla Z-poročila</h2>
         {reports.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-10 text-center">
             <p className="text-sm text-gray-500">Ni še zaključenih dni</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

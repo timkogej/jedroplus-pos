@@ -44,7 +44,7 @@ export default function OnboardingShell({ slug, step, companyName, title, subtit
               J
             </div>
             <span className="text-sm font-semibold text-gray-900">
-              Jedro+ {companyName ? <span className="font-normal text-gray-400">· {companyName}</span> : null}
+              Jedro+ {companyName ? <span className="font-normal text-gray-500">· {companyName}</span> : null}
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
@@ -63,13 +63,13 @@ export default function OnboardingShell({ slug, step, companyName, title, subtit
         </div>
 
         {/* White card with the form */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 md:p-6">{children}</div>
+        <div className="rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] bg-white p-5 md:p-6">{children}</div>
 
         {/* Skip link */}
         <div className="mt-4 text-right">
           <button
             onClick={() => setConfirmSkip(true)}
-            className="text-xs text-gray-400 transition-colors hover:text-gray-600"
+            className="text-xs text-gray-500 transition-colors hover:text-gray-600"
           >
             Preskočite nastavitev
           </button>

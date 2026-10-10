@@ -26,7 +26,7 @@ export default function OnboardingCompleteToast() {
   if (!open) return null
 
   return (
-    <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 px-4">
+    <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 px-4 md:bottom-6">
       <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-lg">
         <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-100">
           <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -17,7 +17,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{
     <div className="bg-gray-900 text-white rounded-xl px-3 py-2 shadow-lg text-xs">
       <p className="font-medium">{new Date(point.date).toLocaleDateString('sl-SI', { day: 'numeric', month: 'long' })}</p>
       <p className="text-gray-200 mt-0.5">{point.total.toFixed(2)} €</p>
-      <p className="text-gray-400">{point.count} {point.count === 1 ? 'račun' : 'računov'}</p>
+      <p className="text-gray-500">{point.count} {point.count === 1 ? 'račun' : 'računov'}</p>
     </div>
   )
 }
@@ -27,7 +27,7 @@ export default function RevenueChart({ data }: { data: RevenuePoint[] }) {
 
   if (!hasRevenue) {
     return (
-      <div className="h-64 flex items-center justify-center text-sm text-gray-400">
+      <div className="h-64 flex items-center justify-center text-sm text-gray-500">
         Ni prometa v zadnjih 30 dneh
       </div>
     )

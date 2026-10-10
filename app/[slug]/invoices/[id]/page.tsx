@@ -195,7 +195,7 @@ export default function InvoiceDetailPage() {
       </div>
 
       <div className="hidden print:block p-8 pb-0">
-        <p className="text-xs text-gray-400 mb-1">Jedro+ POS · {invoice.invoice_number}</p>
+        <p className="text-xs text-gray-500 mb-1">Jedro+ POS · {invoice.invoice_number}</p>
       </div>
 
       <main className="flex-1 p-4 md:p-6 max-w-2xl mx-auto w-full pb-12">
@@ -207,7 +207,7 @@ export default function InvoiceDetailPage() {
           {invoice.status === 'storno_original' && invoice.storno_invoice_id && (
             <Link
               href={`/${slug}/invoices/${invoice.storno_invoice_id}`}
-              className="text-sm text-gray-400 hover:text-gray-600 ml-auto"
+              className="text-sm text-gray-500 hover:text-gray-600 ml-auto"
             >
               Ogled storno računa →
             </Link>
@@ -215,7 +215,7 @@ export default function InvoiceDetailPage() {
           {invoice.status === 'storno' && invoice.storno_of && (
             <Link
               href={`/${slug}/invoices/${invoice.storno_of}`}
-              className="text-sm text-gray-400 hover:text-gray-600 ml-auto"
+              className="text-sm text-gray-500 hover:text-gray-600 ml-auto"
             >
               Ogled originalnega računa →
             </Link>
@@ -296,17 +296,17 @@ export default function InvoiceDetailPage() {
         </div>
 
         {/* Invoice card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 print-invoice">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] shadow-sm p-6 space-y-5 print-invoice">
           <div className="flex justify-between">
             <div>
-              <p className="text-xs text-gray-400">Stranka</p>
+              <p className="text-xs text-gray-500">Stranka</p>
               <p className="font-semibold text-gray-900">{invoice.client_name ?? '—'}</p>
               {invoice.client_email && <p className="text-sm text-gray-500">{invoice.client_email}</p>}
               {invoice.client_phone && <p className="text-sm text-gray-500">{invoice.client_phone}</p>}
               {invoice.client_tax_number && <p className="text-sm text-gray-500">DDV: {invoice.client_tax_number}</p>}
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-400">Datum</p>
+              <p className="text-xs text-gray-500">Datum</p>
               <p className="font-semibold text-gray-900">{new Date(invoice.invoice_date).toLocaleDateString('sl-SI')}</p>
               <p className="text-sm text-gray-500 mt-1">{paymentLabel[invoice.payment_method]}</p>
             </div>
@@ -322,7 +322,7 @@ export default function InvoiceDetailPage() {
                 <div key={item.id} className="flex justify-between text-sm">
                   <div>
                     <p className="text-gray-900">{item.description}</p>
-                    <p className="text-xs text-gray-400">{item.quantity} × {item.unit_price.toFixed(2)} € · DDV {item.vat_rate}%</p>
+                    <p className="text-xs text-gray-500">{item.quantity} × {item.unit_price.toFixed(2)} € · DDV {item.vat_rate}%</p>
                   </div>
                   <p className="font-medium text-gray-900">{item.total.toFixed(2)} €</p>
                 </div>
@@ -350,7 +350,7 @@ export default function InvoiceDetailPage() {
             </div>
             <div className="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-100">
               <span>Skupaj</span>
-              <span className={invoice.status === 'storno' ? 'text-red-600' : 'gradient-text'}>
+              <span className={invoice.status === 'storno' ? 'text-red-600' : 'text-gray-900'}>
                 {invoice.total.toFixed(2)} €
               </span>
             </div>
@@ -391,7 +391,7 @@ export default function InvoiceDetailPage() {
         </div>
 
         <div className="mt-4 no-print">
-          <Link href={`/${slug}/invoices`} className="text-sm text-gray-400 hover:text-gray-600">
+          <Link href={`/${slug}/invoices`} className="text-sm text-gray-500 hover:text-gray-600">
             ← Nazaj na seznam
           </Link>
         </div>
@@ -443,7 +443,7 @@ export default function InvoiceDetailPage() {
       </Modal>
 
       {printHint && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 no-print">
+        <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50 no-print md:bottom-6">
           <div className="flex items-center gap-2.5 bg-gray-900 text-white text-sm font-medium px-4 py-3 rounded-2xl shadow-lg">
             <svg className="w-4 h-4 flex-shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />

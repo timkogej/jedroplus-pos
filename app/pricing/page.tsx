@@ -231,7 +231,7 @@ function PricingPageInner() {
                 }`}
               >
                 {isPro && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-bg text-white text-xs font-semibold px-3 py-1 rounded-full">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#1d1d1f] text-white text-xs font-semibold px-3 py-1 rounded-full">
                     Priporočeno
                   </span>
                 )}

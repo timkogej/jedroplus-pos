@@ -140,11 +140,11 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
       <section>
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Poslovni prostori</h3>
         {premises.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">Ni dodanih poslovnih prostorov</p>
+          <p className="text-sm text-gray-500 italic">Ni dodanih poslovnih prostorov</p>
         ) : (
           <div className="space-y-2">
             {premises.map((p) => (
-              <div key={p.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl">
+              <div key={p.id} className="flex flex-col gap-3 p-3 bg-white border border-gray-100 rounded-xl sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{p.premise_id}</p>
                   <p className="text-xs text-gray-500">
@@ -154,9 +154,9 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
                       p.postal_code,
                     ].filter(Boolean).join(', ')}
                   </p>
-                  <p className="text-xs text-gray-400">{p.premise_type === 'movable' ? 'Mobilna blagajna' : 'Fiksni prostor'}</p>
+                  <p className="text-xs text-gray-500">{p.premise_type === 'movable' ? 'Mobilna blagajna' : 'Fiksni prostor'}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {p.furs_closed ? (
                     <span className="text-xs px-3 py-1 rounded-full border bg-gray-100 border-gray-200 text-gray-600">
                       Trajno zaprt pri FURS
@@ -199,7 +199,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
         {/* Add premise */}
         <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
           <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Dodaj poslovni prostor</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Oznaka (npr. PS1)"
               value={newPremise.premise_id}
@@ -213,7 +213,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
               onChange={(e) => setNewPremise((p) => ({ ...p, premise_type: e.target.value }))}
             />
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="col-span-2">
               <Input
                 label="Ulica"
@@ -241,7 +241,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
           </div>
           <div>
             <p className="text-xs text-gray-500 mb-2">Katastrski podatki (za FURS). Poiščite na e-prostor.gov.si</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Input
                 label="Katastrska občina"
                 value={newPremise.cadastral_number}
@@ -270,7 +270,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
       <section>
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Elektronske naprave</h3>
         {devices.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">Ni dodanih naprav</p>
+          <p className="text-sm text-gray-500 italic">Ni dodanih naprav</p>
         ) : (
           <div className="space-y-2">
             {devices.map((d) => (

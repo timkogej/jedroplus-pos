@@ -45,7 +45,7 @@ export default function AdjustPointsForm({
   }
 
   return (
-    <form onSubmit={submit} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+    <form onSubmit={submit} className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-3">
       <h2 className="text-sm font-semibold text-gray-900">Ročni popravek točk</h2>
       <p className="text-xs text-gray-500">
         Pozitivno število doda točke, negativno jih odšteje (pod 0 ne gre). Vsak popravek se zabeleži z razlogom in vašim e-naslovom.

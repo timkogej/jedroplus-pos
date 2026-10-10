@@ -187,7 +187,7 @@ export default function PaymentsSettingsPage() {
           neposredno na svoj bančni račun.
         </p>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 mb-5">
           {!status.connected && (
             <div className="space-y-4">
               <div>
@@ -251,7 +251,7 @@ export default function PaymentsSettingsPage() {
         </div>
 
         {fullyActive && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">
+          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 mb-5">
             <h3 className="text-sm font-medium text-gray-900">Nastavitve za spletna plačila</h3>
             <p className="text-xs text-gray-500 mt-1 mb-4">
               Izberite poslovni prostor in elektronsko napravo, ki se uporabita pri izdaji računov
@@ -320,7 +320,7 @@ export default function PaymentsSettingsPage() {
           </div>
         )}
 
-        <Link href={`/${slug}/settings`} className="text-sm text-gray-400 hover:text-gray-600">
+        <Link href={`/${slug}/settings`} className="text-sm text-gray-500 hover:text-gray-600">
           ← Nazaj na nastavitve
         </Link>
       </main>

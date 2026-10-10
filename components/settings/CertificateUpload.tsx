@@ -147,7 +147,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
         ) : (
           <>
             <p className="text-sm font-medium text-gray-700">Povlecite .p12 datoteko sem</p>
-            <p className="text-xs text-gray-400 mt-1">ali kliknite za izbiro</p>
+            <p className="text-xs text-gray-500 mt-1">ali kliknite za izbiro</p>
           </>
         )}
       </div>
@@ -175,7 +175,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
         Naloži certifikat
       </Button>
 
-      <p className="text-xs text-gray-400 text-center">
+      <p className="text-xs text-gray-500 text-center">
         Certifikat je šifriran z AES-256 pred shranjevanjem. Geslo ni dostopno javno.
       </p>
     </div>

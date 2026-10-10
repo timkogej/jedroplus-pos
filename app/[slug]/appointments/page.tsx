@@ -37,7 +37,7 @@ export default async function AppointmentsPage(props: { params: Promise<{ slug: 
         title="Termini"
         action={
           <Link href={`/${params.slug}/invoices/new`}>
-            <Button size="sm" className="gradient-bg text-white hover:opacity-95">+ Nov račun</Button>
+            <Button size="sm">+ Nov račun</Button>
           </Link>
         }
       />
@@ -48,7 +48,7 @@ export default async function AppointmentsPage(props: { params: Promise<{ slug: 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             <p className="text-sm text-gray-500 font-medium">Ni dokončanih terminov</p>
-            <p className="text-xs text-gray-400 mt-1">Ko so termini dokončani, se pojavijo tukaj</p>
+            <p className="text-xs text-gray-500 mt-1">Ko so termini dokončani, se pojavijo tukaj</p>
           </div>
         ) : (
           <div className="space-y-6 max-w-2xl mx-auto">

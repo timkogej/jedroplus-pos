@@ -191,7 +191,7 @@ export default function OnboardingStep2() {
         <div className="flex items-center justify-between pt-1">
           <button
             onClick={() => router.push(`/${slug}/onboarding/step1`)}
-            className="text-sm text-gray-400 transition-colors hover:text-gray-600"
+            className="text-sm text-gray-500 transition-colors hover:text-gray-600"
           >
             ← Nazaj
           </button>

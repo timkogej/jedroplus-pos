@@ -56,7 +56,7 @@ export default async function InvoicesPage(props: { params: Promise<{ slug: stri
             <AccountingExportButton companyId={company.id} isPro={isPro} />
             <ExportInvoicesButton companyId={company.id} />
             <Link href={`/${params.slug}/invoices/new`}>
-              <Button size="sm" className="gradient-bg px-2.5 text-xs text-white hover:opacity-95 sm:px-3 sm:text-sm">
+              <Button size="sm">
                 + Nov račun
               </Button>
             </Link>
@@ -70,7 +70,7 @@ export default async function InvoicesPage(props: { params: Promise<{ slug: stri
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <p className="text-sm text-gray-500 font-medium">Ni izstavljenih računov</p>
-            <p className="text-xs text-gray-400 mt-1">Izstavite prvi račun iz terminov ali ročno</p>
+            <p className="text-xs text-gray-500 mt-1">Izstavite prvi račun iz terminov ali ročno</p>
             <Link href={`/${params.slug}/invoices/new`} className="text-sm text-brand hover:underline mt-3 inline-block">
               Izstavi račun →
             </Link>
@@ -78,21 +78,21 @@ export default async function InvoicesPage(props: { params: Promise<{ slug: stri
         ) : (
           <>
             {/* Mobile card list */}
-            <div className="md:hidden bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+            <div className="md:hidden bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] divide-y divide-gray-50">
               {(invoices as PosInvoice[]).map((inv) => {
                 const isStornoed = inv.status === 'storno_original'
                 const isStornoInv = inv.status === 'storno'
                 return (
                   <Link key={inv.id} href={`/${params.slug}/invoices/${inv.id}`} className={`block px-4 py-4 hover:bg-gray-50 transition-colors ${isStornoed ? 'opacity-50' : ''}`}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className={`font-mono text-sm font-medium ${isStornoed ? 'line-through text-gray-400' : 'text-gray-900'}`}>{inv.invoice_number}</span>
+                      <span className={`font-mono text-sm font-medium ${isStornoed ? 'line-through text-gray-500' : 'text-gray-900'}`}>{inv.invoice_number}</span>
                       {statusBadge(inv.status, inv.eor, (inv.furs_response as { demo?: boolean })?.demo === true)}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 truncate mr-2">{inv.client_name ?? <span className="italic text-gray-400">Neznana stranka</span>}</span>
+                      <span className="text-sm text-gray-600 truncate mr-2">{inv.client_name ?? <span className="italic text-gray-500">Neznana stranka</span>}</span>
                       <span className={`text-sm font-semibold flex-shrink-0 ${isStornoInv ? 'text-red-600' : 'text-gray-900'}`}>{inv.total.toFixed(2)} €</span>
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-xs text-gray-500 mt-1">
                       {new Date(inv.invoice_date).toLocaleDateString('sl-SI')} · {paymentLabel(inv.payment_method)}
                     </div>
                   </Link>
@@ -101,7 +101,7 @@ export default async function InvoicesPage(props: { params: Promise<{ slug: stri
             </div>
 
             {/* Desktop table */}
-            <div className="hidden md:block bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="hidden md:block bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -121,7 +121,7 @@ export default async function InvoicesPage(props: { params: Promise<{ slug: stri
                       return (
                         <tr key={inv.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${isStornoed ? 'opacity-50' : ''}`}>
                           <td className="px-4 py-3">
-                            <Link href={`/${params.slug}/invoices/${inv.id}`} className={`font-mono font-medium hover:text-brand hover:underline transition-colors ${isStornoed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                            <Link href={`/${params.slug}/invoices/${inv.id}`} className={`font-mono font-medium hover:text-brand hover:underline transition-colors ${isStornoed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
                               {inv.invoice_number}
                             </Link>
                           </td>
@@ -129,7 +129,7 @@ export default async function InvoicesPage(props: { params: Promise<{ slug: stri
                             {new Date(inv.invoice_date).toLocaleDateString('sl-SI')}
                           </td>
                           <td className="px-4 py-3 text-gray-700">
-                            {inv.client_name ?? <span className="text-gray-400 italic">Neznana stranka</span>}
+                            {inv.client_name ?? <span className="text-gray-500 italic">Neznana stranka</span>}
                           </td>
                           <td className={`px-4 py-3 text-right font-semibold ${isStornoInv ? 'text-red-600' : 'text-gray-900'}`}>
                             {inv.total.toFixed(2)} €

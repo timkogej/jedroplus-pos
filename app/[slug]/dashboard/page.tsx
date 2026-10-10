@@ -75,7 +75,7 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
         title="Pregled"
         action={
           <Link href={`/${params.slug}/invoices/new`}>
-            <Button size="sm" className="gradient-bg text-white hover:opacity-95">+ Izstavi račun</Button>
+            <Button size="sm">+ Izstavi račun</Button>
           </Link>
         }
       />

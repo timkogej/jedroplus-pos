@@ -171,7 +171,7 @@ export default function CompanyDataPage() {
           Ti podatki se prikažejo v glavi vsakega PDF računa.
         </p>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 mb-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-4 mb-5">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Osnovni podatki</h3>
           <Input
             label="Naziv podjetja (za račun)"
@@ -185,7 +185,7 @@ export default function CompanyDataPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 mb-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-4 mb-5">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Naslov</h3>
           <Input label="Ulica in hišna številka" value={data.address} onChange={(e) => set('address', e.target.value)} placeholder="Slovenska cesta 1" />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -197,13 +197,13 @@ export default function CompanyDataPage() {
           <Input label="Država" value={data.country} onChange={(e) => set('country', e.target.value)} placeholder="Slovenija" />
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 mb-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-4 mb-5">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bančni podatki</h3>
           <Input label="IBAN" value={data.iban} onChange={(e) => set('iban', e.target.value)} placeholder="SI56 1234 5678 9012 345" />
           <Input label="Banka" value={data.bank} onChange={(e) => set('bank', e.target.value)} placeholder="NLB d.d." />
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 mb-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-4 mb-5">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Kontakt</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="E-pošta" type="email" value={data.email} onChange={(e) => set('email', e.target.value)} placeholder="info@podjetje.si" />
@@ -220,7 +220,7 @@ export default function CompanyDataPage() {
           <Button onClick={save} loading={saving}>
             {saved ? 'Shranjeno ✓' : 'Shrani podatke'}
           </Button>
-          <Link href={`/${slug}/settings`} className="text-sm text-gray-400 hover:text-gray-600">
+          <Link href={`/${slug}/settings`} className="text-sm text-gray-500 hover:text-gray-600">
             Prekliči
           </Link>
         </div>

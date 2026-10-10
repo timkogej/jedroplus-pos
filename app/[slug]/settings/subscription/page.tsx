@@ -142,14 +142,14 @@ export default function SubscriptionSettingsPage() {
       <Header slug={slug} title="Naročnina" />
       <main className="flex-1 p-4 md:p-6 max-w-2xl mx-auto w-full">
         {!sub || sub.plan === null ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-6 text-center">
             <p className="text-sm text-gray-600 mb-4">Trenutno nimate aktivne naročnine.</p>
             <Link href="/pricing">
               <Button>Izberi paket</Button>
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5">
+          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-6 mb-5">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs text-gray-500">Vaš paket</p>
@@ -212,7 +212,7 @@ export default function SubscriptionSettingsPage() {
           </div>
         )}
 
-        <Link href={`/${slug}/settings`} className="text-sm text-gray-400 hover:text-gray-600">
+        <Link href={`/${slug}/settings`} className="text-sm text-gray-500 hover:text-gray-600">
           ← Nazaj na nastavitve
         </Link>
       </main>

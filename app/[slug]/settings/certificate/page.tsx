@@ -31,12 +31,12 @@ export default async function CertificatePage(props: { params: Promise<{ slug: s
       <Header slug={params.slug} title="Certifikat FURS" />
       <main className="flex-1 p-4 md:p-6 max-w-xl mx-auto w-full">
         <div className="mb-4">
-          <Link href={`/${params.slug}/settings`} className="text-sm text-gray-400 hover:text-gray-600">
+          <Link href={`/${params.slug}/settings`} className="text-sm text-gray-500 hover:text-gray-600">
             ← Nastavitve
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] shadow-sm p-5">
           <h2 className="text-base font-semibold text-gray-900 mb-1">Digitalni certifikat</h2>
           <p className="text-sm text-gray-500 mb-5">
             Za potrjevanje računov pri FURS potrebujete digitalni certifikat (.p12) izdan s strani FURS.

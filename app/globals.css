@@ -10,6 +10,12 @@
   --color-primary-hover: #1f1f1f;
 }
 
+/* Keyboard focus: a clear ring on links and buttons (form fields keep their own focus style). */
+:focus-visible {
+  outline: 2px solid rgba(109, 94, 247, 0.7);
+  outline-offset: 2px;
+}
+
 body {
   color: #1d1d1f;
   background: #f5f5f7;
