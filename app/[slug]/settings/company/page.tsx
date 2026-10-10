@@ -7,6 +7,7 @@ import { useCompany } from '@/components/layout/CompanyContext'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { friendlyError } from '@/lib/errors'
 
 interface CompanyData {
   id?: string
@@ -140,7 +141,7 @@ export default function CompanyDataPage() {
 
     setSaving(false)
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err))
     } else {
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)

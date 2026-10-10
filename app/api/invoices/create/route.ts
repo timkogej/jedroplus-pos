@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof InvoiceValidationError || err instanceof ValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 })
     }
-    const message = err instanceof Error ? err.message : 'Server error'
+    const message = err instanceof Error ? err.message : 'Napaka strežnika. Poskusite znova.'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

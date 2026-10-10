@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { authFetch } from '@/lib/authFetch'
+import { friendlyError } from '@/lib/errors'
 
 interface CertificateInfo {
   tax_number: string
@@ -76,7 +77,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
         setConnectionTest('failed')
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Napaka')
+      setError(friendlyError(err, 'Napaka'))
     } finally {
       setUploading(false)
     }

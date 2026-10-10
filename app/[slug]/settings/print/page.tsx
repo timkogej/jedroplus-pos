@@ -7,6 +7,7 @@ import { useCompany } from '@/components/layout/CompanyContext'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import type { PosSettings } from '@/types'
+import { friendlyError } from '@/lib/errors'
 
 type PrintFormat = 'a4' | 'thermal' | 'ask'
 
@@ -66,7 +67,7 @@ export default function PrintSettingsPage() {
       )
     setSaving(false)
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err))
       return
     }
     setSaved(true)

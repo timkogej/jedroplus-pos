@@ -7,6 +7,7 @@ import { authFetch } from '@/lib/authFetch'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import OnboardingShell from '@/components/onboarding/OnboardingShell'
+import { friendlyError } from '@/lib/errors'
 
 interface Form {
   premise_id: string
@@ -95,7 +96,7 @@ export default function OnboardingStep2() {
 
     if (premiseErr || !premise) {
       setSaving(false)
-      setError(premiseErr?.message ?? 'Napaka pri shranjevanju prostora.')
+      setError(premiseErr ? friendlyError(premiseErr, 'Napaka pri shranjevanju prostora.') : 'Napaka pri shranjevanju prostora.')
       return
     }
 
@@ -108,7 +109,7 @@ export default function OnboardingStep2() {
 
     if (deviceErr) {
       setSaving(false)
-      setError(deviceErr.message)
+      setError(friendlyError(deviceErr, 'Napaka pri shranjevanju naprave.'))
       return
     }
 

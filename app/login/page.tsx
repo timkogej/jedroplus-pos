@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
 import { resolveCompanyForUser } from '@/lib/auth/resolveCompany'
 import Button from '@/components/ui/Button'
+import { friendlyError } from '@/lib/errors'
 
 const loginInfoText = 'Uporabite iste prijavne podatke kot v aplikaciji Jedro+.'
 
@@ -99,7 +100,7 @@ function LoginPageInner() {
 
       go(`/${company.slug}/dashboard`)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Napaka pri prijavi'
+      const msg = friendlyError(err, 'Napaka pri prijavi')
       console.error('[login] error:', msg, err)
       setError(msg)
     } finally {

@@ -355,7 +355,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
     })
   } catch (err: unknown) {
     await releaseClaim().catch(() => {})
-    const message = err instanceof Error ? err.message : 'Server error'
+    const message = err instanceof Error ? err.message : 'Napaka strežnika. Poskusite znova.'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

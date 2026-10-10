@@ -6,6 +6,7 @@ import { useCompany } from '@/components/layout/CompanyContext'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import OnboardingShell from '@/components/onboarding/OnboardingShell'
+import { friendlyError } from '@/lib/errors'
 
 interface Form {
   company_name: string
@@ -125,7 +126,7 @@ export default function OnboardingStep1() {
 
     setSaving(false)
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err))
       return
     }
     router.push(`/${slug}/onboarding/step2`)

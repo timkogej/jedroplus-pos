@@ -8,6 +8,7 @@ import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import type { PosSettings } from '@/types'
+import { friendlyError } from '@/lib/errors'
 
 export default function LoyaltySettingsPage() {
   const params = useParams()
@@ -81,7 +82,7 @@ export default function LoyaltySettingsPage() {
     )
     setSaving(false)
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err))
       return
     }
     setSaved(true)

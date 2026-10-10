@@ -22,6 +22,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   } catch (err) {
     if (err instanceof ValidationError) return NextResponse.json({ error: err.message }, { status: 400 })
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Napaka strežnika. Poskusite znova.' }, { status: 500 })
   }
 }

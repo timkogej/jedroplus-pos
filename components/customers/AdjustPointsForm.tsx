@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { authFetch } from '@/lib/authFetch'
+import { friendlyError } from '@/lib/errors'
 
 export default function AdjustPointsForm({
   companyId,
@@ -37,7 +38,7 @@ export default function AdjustPointsForm({
       setDone(true)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Napaka')
+      setError(friendlyError(err, 'Napaka'))
     } finally {
       setBusy(false)
     }

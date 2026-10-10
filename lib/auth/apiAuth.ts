@@ -36,7 +36,7 @@ export async function authenticateRequest(
     console.warn(
       `[auth] 401 ${req.nextUrl.pathname}: Authorization header ${req.headers.has('Authorization') ? 'present but empty' : 'missing'}`
     )
-    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+    return { response: NextResponse.json({ error: 'Niste prijavljeni. Prijavite se znova.' }, { status: 401 }) }
   }
 
   const supabase = createServiceClient()
@@ -47,7 +47,7 @@ export async function authenticateRequest(
 
   if (error || !user) {
     console.warn(`[auth] 401 ${req.nextUrl.pathname}: neveljaven token (${error?.message ?? 'no user'})`)
-    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+    return { response: NextResponse.json({ error: 'Niste prijavljeni. Prijavite se znova.' }, { status: 401 }) }
   }
 
   return { user: { id: user.id, email: user.email ?? null } }
@@ -84,7 +84,7 @@ export async function requireCompanyAccess(
     console.warn(
       `[auth] 403 ${req.nextUrl.pathname}: user=${auth.user.id} company=${ownCompanyId ?? 'none'} zahteval=${companyId}`
     )
-    return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+    return { response: NextResponse.json({ error: 'Za to dejanje nimate dovoljenja.' }, { status: 403 }) }
   }
 
   return { user: auth.user }
@@ -114,7 +114,7 @@ export async function requireInvoiceAccess(
 
   const ownCompanyId = await getUserCompanyId(auth.user.id)
   if (!ownCompanyId || ownCompanyId !== invoice.company_id) {
-    return { response: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+    return { response: NextResponse.json({ error: 'Za to dejanje nimate dovoljenja.' }, { status: 403 }) }
   }
 
   return { user: auth.user, companyId: invoice.company_id as string }

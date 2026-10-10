@@ -75,6 +75,6 @@ export async function POST(req: NextRequest) {
     const balance = await getPointsBalance(companyId!, email, supabase)
     return NextResponse.json({ ok: true, balance })
   } catch (err: unknown) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Server error' }, { status: 500 })
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Napaka strežnika. Poskusite znova.' }, { status: 500 })
   }
 }

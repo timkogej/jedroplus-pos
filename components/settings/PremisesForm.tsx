@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { PosPremise, PosDevice } from '@/types'
+import { friendlyError } from '@/lib/errors'
 
 interface Props {
   companyId: string
@@ -53,7 +54,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
       .select()
       .single()
 
-    if (err) { setError(err.message); setAddingPremise(false); return }
+    if (err) { setError(friendlyError(err)); setAddingPremise(false); return }
     const added = data as PosPremise
     setPremises((p) => {
       const updated = [...p, added]
@@ -79,7 +80,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
       .select()
       .single()
 
-    if (err) { setError(err.message); setAddingDevice(false); return }
+    if (err) { setError(friendlyError(err)); setAddingDevice(false); return }
     setDevices((d) => [...d, data as PosDevice])
     setNewDevice((d) => ({ device_id: '', premise_id: d.premise_id }))
     setAddingDevice(false)

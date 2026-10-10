@@ -8,6 +8,7 @@ import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import { friendlyError } from '@/lib/errors'
 
 // ─── Format definitions ──────────────────────────────────────────────────────
 
@@ -216,7 +217,7 @@ export default function InvoiceSettingsPage() {
 
     setSaving(false)
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err))
     } else {
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)

@@ -11,6 +11,7 @@ import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
 import type { InvoiceFormData, InvoiceItemForm, PosPremise, PosDevice, PosSettings, PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
+import { friendlyError } from '@/lib/errors'
 
 interface InvoiceFormProps {
   companyId: string
@@ -299,7 +300,7 @@ export default function InvoiceForm({
         await handleDelivery(delivery, data.invoiceId, data.pdfUrl)
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Napaka pri izstavitvi')
+      setError(friendlyError(err, 'Napaka pri izstavitvi'))
     } finally {
       setLoading(false)
     }

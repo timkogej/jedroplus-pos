@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ reports: data ?? [] })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Server error'
+    const message = err instanceof Error ? err.message : 'Napaka strežnika. Poskusite znova.'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
