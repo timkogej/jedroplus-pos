@@ -7,6 +7,8 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import OnboardingShell from '@/components/onboarding/OnboardingShell'
 import { friendlyError } from '@/lib/errors'
+import { authFetch } from '@/lib/authFetch'
+import HelpTip from '@/components/help/HelpTip'
 
 interface Form {
   company_name: string
@@ -49,6 +51,8 @@ export default function OnboardingStep1() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [touched, setTouched] = useState(false)
+  // null = the user hasn't answered yet
+  const [vatPayer, setVatPayer] = useState<boolean | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -80,6 +84,13 @@ export default function OnboardingStep1() {
       } else {
         setData((d) => ({ ...d, company_name: company.name ?? '' }))
       }
+
+      // If the question was already answered (user came back), show that answer.
+      const [{ data: st }, { data: os }] = await Promise.all([
+        supabase.from('pos_settings').select('is_vat_registered').eq('company_id', company.id).maybeSingle(),
+        supabase.from('pos_onboarding_state').select('vat_confirmed').eq('company_id', company.id).maybeSingle(),
+      ])
+      if (os?.vat_confirmed) setVatPayer(st?.is_vat_registered !== false)
       setLoading(false)
     }
     load()
@@ -96,8 +107,8 @@ export default function OnboardingStep1() {
   async function next() {
     setTouched(true)
     const firstMissing = REQUIRED.find((f) => !data[f].trim())
-    if (firstMissing) {
-      setError('Izpolnite vsa obvezna polja.')
+    if (firstMissing || vatPayer === null) {
+      setError(firstMissing ? 'Izpolnite vsa obvezna polja.' : 'Odgovorite, ali ste zavezanec za DDV.')
       return
     }
     if (!companyId) return
@@ -124,9 +135,21 @@ export default function OnboardingStep1() {
       { onConflict: 'company_id' }
     )
 
-    setSaving(false)
     if (err) {
+      setSaving(false)
       setError(friendlyError(err))
+      return
+    }
+
+    // The VAT answer is saved by the server (settings + "answered" flag for the guide).
+    const vatRes = await authFetch('/api/guide/preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId, action: 'vat', vatRegistered: vatPayer }),
+    })
+    setSaving(false)
+    if (!vatRes.ok) {
+      setError('Odgovora o DDV ni bilo mogoče shraniti. Poskusite znova.')
       return
     }
     router.push(`/${slug}/onboarding/step2`)
@@ -184,6 +207,7 @@ export default function OnboardingStep1() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
             label="Davčna številka *"
+            help="taxNumber"
             value={data.tax_number}
             onChange={(e) => set('tax_number', e.target.value)}
             placeholder="12345678"
@@ -191,11 +215,45 @@ export default function OnboardingStep1() {
           />
           <Input
             label="ID za DDV"
+            help="vat"
             value={data.vat_id}
             onChange={(e) => set('vat_id', e.target.value)}
             placeholder="SI12345678"
           />
         </div>
+        <fieldset aria-describedby="vat-hint">
+          <legend className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+            Ali ste zavezanec za DDV? * <HelpTip term="vat" />
+          </legend>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {[
+              { value: true, title: 'Da, sem zavezanec', hint: 'Računi prikažejo DDV.' },
+              { value: false, title: 'Ne, nisem zavezanec', hint: 'DDV ni obračunan.' },
+            ].map((o) => (
+              <label
+                key={String(o.value)}
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                  vatPayer === o.value ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-gray-300'
+                } ${touched && vatPayer === null ? 'border-red-300' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="vat-payer"
+                  checked={vatPayer === o.value}
+                  onChange={() => setVatPayer(o.value)}
+                  className="mt-0.5 h-4 w-4 accent-brand"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-gray-900">{o.title}</span>
+                  <span className="block text-xs text-gray-500">{o.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <p id="vat-hint" className="mt-1.5 text-xs text-gray-500">
+            Odgovor lahko pozneje spremenite v Nastavitve → Nastavitve računov.
+          </p>
+        </fieldset>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
             label="E-pošta podjetja *"

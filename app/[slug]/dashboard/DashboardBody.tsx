@@ -28,8 +28,6 @@ interface DashboardBodyProps {
   company: { id: string; company_id: string | null }
   slug: string
   loyaltyEnabled: boolean
-  premiseCount: number
-  hasCert: boolean
 }
 
 /**
@@ -37,7 +35,7 @@ interface DashboardBodyProps {
  * <Suspense> boundary, so the page header and the alert banners appear
  * immediately and these (heavier) queries stream in afterwards.
  */
-export default async function DashboardBody({ company, slug, loyaltyEnabled, premiseCount, hasCert }: DashboardBodyProps) {
+export default async function DashboardBody({ company, slug, loyaltyEnabled }: DashboardBodyProps) {
   const supabase = createServiceClient()
 
   // All day/month boundaries are Slovenian local time (the server runs in UTC).
@@ -256,45 +254,6 @@ export default async function DashboardBody({ company, slug, loyaltyEnabled, pre
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Setup checklist */}
-          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Hitra nastavitev</h2>
-            <div className="space-y-3">
-              {[
-                {
-                  href: `/${slug}/settings/certificate`,
-                  label: 'Naložite FURS certifikat',
-                  done: hasCert,
-                },
-                {
-                  href: `/${slug}/settings/premises`,
-                  label: 'Dodajte poslovni prostor in napravo',
-                  done: premiseCount > 0,
-                },
-                {
-                  href: `/${slug}/invoices/new`,
-                  label: 'Izstavite prvi račun',
-                  done: (recentInvoices?.length ?? 0) > 0,
-                },
-              ].map((item, i) => (
-                <Link key={i} href={item.href}>
-                  <div className="flex items-center gap-3 py-1 group">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${item.done ? 'bg-gray-900 border-gray-900' : 'border-gray-300 group-hover:border-gray-900'}`}>
-                      {item.done && (
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                    <span className={`text-sm ${item.done ? 'text-gray-500 line-through' : 'text-gray-700 group-hover:text-gray-900'} transition-colors`}>
-                      {item.label}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
           </div>
     </>
   )

@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'onboarding@jedroplus.com'
-export const SUPPORT_EMAIL = 'info@jedroplus.com'
+import { SUPPORT_EMAIL } from '@/lib/help/contact'
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')

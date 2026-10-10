@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
 import { useZReportWarning } from '@/components/layout/useZReportWarning'
+import { useOptionalGuide } from '@/components/guide/GuideProvider'
 
 interface MobileNavProps {
   slug: string
@@ -32,6 +33,8 @@ const ICON = {
   settings: ["M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z", "M15 12a3 3 0 11-6 0 3 3 0 016 0z"],
   logout: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
   more: ["M5 12h.01", "M12 12h.01", "M19 12h.01"],
+  guide: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
+  help: "M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
 }
 
 export default function MobileNav({ slug }: MobileNavProps) {
@@ -39,6 +42,7 @@ export default function MobileNav({ slug }: MobileNavProps) {
   const router = useRouter()
   const clearCompanyData = usePosStore((s) => s.clearCompanyData)
   const zWarning = useZReportWarning()
+  const guide = useOptionalGuide()?.summary ?? null
   const base = `/${slug}`
   const [moreOpen, setMoreOpen] = useState(false)
   const moreButtonRef = useRef<HTMLButtonElement>(null)
@@ -75,16 +79,20 @@ export default function MobileNav({ slug }: MobileNavProps) {
   }
 
   const tabs = [
-    { href: `${base}/dashboard`, label: 'Pregled', icon: ICON.home },
-    { href: `${base}/appointments`, label: 'Termini', icon: ICON.calendar },
-    { href: `${base}/invoices/new`, label: 'Nov račun', icon: ICON.plus, center: true },
-    { href: `${base}/invoices`, label: 'Računi', icon: ICON.invoices },
+    { href: `${base}/dashboard`, label: 'Pregled', icon: ICON.home, tour: 'dashboard' },
+    { href: `${base}/appointments`, label: 'Termini', icon: ICON.calendar, tour: 'appointments' },
+    { href: `${base}/invoices/new`, label: 'Nov račun', icon: ICON.plus, center: true, tour: 'new' },
+    { href: `${base}/invoices`, label: 'Računi', icon: ICON.invoices, tour: 'invoices' },
   ]
 
-  const moreLinks = [
+  const moreLinks: Array<{ href: string; label: string; hint: string; icon: string | string[]; warn?: boolean; pill?: string }> = [
+    ...(guide && !guide.complete
+      ? [{ href: `${base}/guide`, label: 'Vodič', hint: 'Pot do prvega računa', icon: ICON.guide, pill: `${guide.done}/${guide.total}` }]
+      : []),
     { href: `${base}/customers`, label: 'Stranke', hint: 'Seznam strank in zvestobne točke', icon: ICON.customers },
     { href: `${base}/z-report`, label: 'Z-poročilo', hint: zWarning ? 'Danes še ni zaključeno' : 'Dnevni zaključek blagajne', icon: ICON.report, warn: zWarning },
     { href: `${base}/settings`, label: 'Nastavitve', hint: 'Podjetje, računi, certifikat, prostori', icon: ICON.settings },
+    { href: `${base}/help`, label: 'Pomoč', hint: 'Razlage pojmov in navodila', icon: ICON.help },
   ]
   const moreActive = moreLinks.some((l) => isActive(l.href))
 
@@ -103,6 +111,7 @@ export default function MobileNav({ slug }: MobileNavProps) {
                   key={tab.href}
                   href={tab.href}
                   aria-label={tab.label}
+                  data-tour="new-invoice"
                   className="flex h-full items-center justify-center outline-none"
                 >
                   <span className="-mt-5 flex h-14 w-14 items-center justify-center rounded-full gradient-bg text-white shadow-lg shadow-brand/30 ring-4 ring-white transition-transform active:scale-95">
@@ -116,6 +125,7 @@ export default function MobileNav({ slug }: MobileNavProps) {
                 key={tab.href}
                 href={tab.href}
                 aria-label={tab.label}
+                data-tour={`nav-${tab.tour}`}
                 aria-current={active ? 'page' : undefined}
                 className="flex h-full flex-col items-center justify-center gap-0.5 outline-none focus-visible:bg-black/[0.04]"
               >
@@ -129,6 +139,7 @@ export default function MobileNav({ slug }: MobileNavProps) {
             ref={moreButtonRef}
             type="button"
             onClick={() => setMoreOpen((v) => !v)}
+            data-tour="nav-more"
             aria-haspopup="dialog"
             aria-expanded={moreOpen}
             className="relative flex h-full flex-col items-center justify-center gap-0.5 outline-none focus-visible:bg-black/[0.04]"
@@ -183,6 +194,7 @@ export default function MobileNav({ slug }: MobileNavProps) {
                         <span className="block text-[15px] font-semibold text-gray-900">{l.label}</span>
                         <span className={`block truncate text-[12px] ${l.warn ? 'font-medium text-red-600' : 'text-gray-500'}`}>{l.hint}</span>
                       </span>
+                      {l.pill && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">{l.pill}</span>}
                       {l.warn && <span className="h-2 w-2 flex-shrink-0 rounded-full bg-red-500" />}
                       <svg className="h-4 w-4 flex-shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

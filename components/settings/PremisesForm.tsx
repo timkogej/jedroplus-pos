@@ -202,6 +202,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Oznaka (npr. PS1)"
+              help="premise"
               value={newPremise.premise_id}
               onChange={(e) => setNewPremise((p) => ({ ...p, premise_id: e.target.value.toUpperCase() }))}
               placeholder="PS1"
@@ -244,6 +245,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Input
                 label="Katastrska občina"
+                help="cadastral"
                 value={newPremise.cadastral_number}
                 onChange={(e) => setNewPremise((p) => ({ ...p, cadastral_number: e.target.value.replace(/[^0-9]/g, '') }))}
                 placeholder="1938"
@@ -292,6 +294,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Oznaka naprave (npr. EN1)"
+              help="device"
               value={newDevice.device_id}
               onChange={(e) => setNewDevice((d) => ({ ...d, device_id: e.target.value.toUpperCase() }))}
               placeholder="EN1"

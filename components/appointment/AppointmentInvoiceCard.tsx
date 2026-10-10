@@ -8,9 +8,11 @@ import type { Appointment } from '@/types'
 interface Props {
   appointment: Appointment & { alreadyInvoiced?: boolean; clientName?: string }
   slug: string
+  /** The first card carries the data-tour markers used by the guided tour. */
+  tourFirst?: boolean
 }
 
-export default function AppointmentInvoiceCard({ appointment, slug }: Props) {
+export default function AppointmentInvoiceCard({ appointment, slug, tourFirst = false }: Props) {
   const router = useRouter()
 
   function handleInvoice() {
@@ -42,6 +44,7 @@ export default function AppointmentInvoiceCard({ appointment, slug }: Props) {
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
+      data-tour={tourFirst ? 'appt-card' : undefined}
       className={`bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4 flex items-center justify-between gap-4 ${appointment.alreadyInvoiced ? 'opacity-60' : ''}`}
     >
       <div className="flex-1 min-w-0">
@@ -65,7 +68,7 @@ export default function AppointmentInvoiceCard({ appointment, slug }: Props) {
           )}
         </div>
         {!appointment.alreadyInvoiced && (
-          <Button size="sm" onClick={handleInvoice}>
+          <Button size="sm" onClick={handleInvoice} data-tour={tourFirst ? 'appt-issue' : undefined}>
             Izstavi
           </Button>
         )}

@@ -6,7 +6,8 @@ const TOURS = ['dashboard', 'appointments'] as const
 const HIDE_HOURS = 12
 
 type Body =
-  | { companyId: string; action: 'hide' | 'dismiss' | 'show' | 'tourReset' }
+  | { companyId: string; action: 'hide' | 'dismiss' | 'show' }
+  | { companyId: string; action: 'tourReset'; tour?: string }
   | { companyId: string; action: 'tourSeen'; tour: string }
   | { companyId: string; action: 'vat'; vatRegistered: boolean }
 
@@ -32,9 +33,21 @@ export async function POST(req: NextRequest) {
       case 'show':
         patch = { guide_dismissed: false, guide_hidden_until: null }
         break
-      case 'tourReset':
-        patch = { tour_seen: {} }
+      case 'tourReset': {
+        if (!body.tour) {
+          patch = { tour_seen: {} }
+          break
+        }
+        const { data } = await supabase
+          .from('pos_onboarding_state')
+          .select('tour_seen')
+          .eq('company_id', companyId)
+          .maybeSingle()
+        const seen = { ...((data?.tour_seen as Record<string, boolean> | null) ?? {}) }
+        delete seen[body.tour]
+        patch = { tour_seen: seen }
         break
+      }
       case 'tourSeen': {
         if (!TOURS.includes(body.tour as (typeof TOURS)[number])) {
           return NextResponse.json({ error: 'Neznan ogled' }, { status: 400 })
@@ -65,7 +78,12 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase
       .from('pos_onboarding_state')
       .upsert({ company_id: companyId, ...patch, updated_at: now }, { onConflict: 'company_id' })
-    if (error) throw new Error(error.message)
+    if (error) {
+      // The VAT answer itself is already saved in pos_settings; a missing guide table
+      // (migration 030 not run yet) must not block onboarding.
+      if (body.action === 'vat') console.error('[guide/preferences] state not saved (migration 030?):', error.message)
+      else throw new Error(error.message)
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {

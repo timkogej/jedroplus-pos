@@ -4,6 +4,7 @@ import { requireCompanyForSlug } from '@/lib/auth/serverCompany'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import CertificateUpload from '@/components/settings/CertificateUpload'
+import HelpTip from '@/components/help/HelpTip'
 
 export const revalidate = 0
 
@@ -37,7 +38,7 @@ export default async function CertificatePage(props: { params: Promise<{ slug: s
         </div>
 
         <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] shadow-sm p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-1">Digitalni certifikat</h2>
+          <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-gray-900">Digitalni certifikat <HelpTip term="certificate" /></h2>
           <p className="text-sm text-gray-500 mb-5">
             Za potrjevanje računov pri FURS potrebujete digitalni certifikat (.p12) izdan s strani FURS.
           </p>

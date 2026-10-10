@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
 import { friendlyError } from '@/lib/errors'
+import { authFetch } from '@/lib/authFetch'
 
 // ─── Format definitions ──────────────────────────────────────────────────────
 
@@ -221,6 +222,12 @@ export default function InvoiceSettingsPage() {
     } else {
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
+      // Saving this page counts as answering the VAT question in the setup guide.
+      void authFetch('/api/guide/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, action: 'vat', vatRegistered }),
+      })
     }
   }
 

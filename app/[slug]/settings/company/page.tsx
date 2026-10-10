@@ -180,8 +180,8 @@ export default function CompanyDataPage() {
             placeholder="Moje podjetje d.o.o."
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input label="Davčna številka" value={data.tax_number} onChange={(e) => set('tax_number', e.target.value)} placeholder="12345678" />
-            <Input label="ID za DDV" value={data.vat_id} onChange={(e) => set('vat_id', e.target.value)} placeholder="SI12345678" />
+            <Input label="Davčna številka" help="taxNumber" value={data.tax_number} onChange={(e) => set('tax_number', e.target.value)} placeholder="12345678" />
+            <Input label="ID za DDV" help="vat" value={data.vat_id} onChange={(e) => set('vat_id', e.target.value)} placeholder="SI12345678" />
           </div>
         </div>
 

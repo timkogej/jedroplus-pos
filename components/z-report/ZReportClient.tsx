@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
+import HelpTip from '@/components/help/HelpTip'
 import { authFetch } from '@/lib/authFetch'
 import { formatReportLabel } from '@/lib/z-report/calculate'
 import type { ZReportTotals } from '@/lib/z-report/calculate'
@@ -212,7 +213,10 @@ export default function ZReportClient({
       {!todayReport ? (
         <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-5">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">{isToday ? 'Pregled prometa danes' : `Pregled prometa za ${dateShort(selectedDate)}`}</h2>
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              {isToday ? 'Pregled prometa danes' : `Pregled prometa za ${dateShort(selectedDate)}`}
+              <HelpTip term="zReport" />
+            </h2>
             <p className="text-xs text-gray-500 mt-0.5">Vrednosti pred zaključkom dneva</p>
           </div>
 

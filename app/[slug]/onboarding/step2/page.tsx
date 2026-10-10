@@ -12,12 +12,20 @@ import { friendlyError } from '@/lib/errors'
 interface Form {
   premise_id: string
   address: string
+  house_number: string
+  house_number_additional: string
   city: string
   postal_code: string
 }
 
-const empty: Form = { premise_id: 'PS1', address: '', city: '', postal_code: '' }
-const REQUIRED: (keyof Form)[] = ['premise_id', 'address', 'city', 'postal_code']
+const empty: Form = { premise_id: 'PS1', address: '', house_number: '', house_number_additional: '', city: '', postal_code: '' }
+const REQUIRED: (keyof Form)[] = ['premise_id', 'address', 'house_number', 'city', 'postal_code']
+
+/** "Slovenska cesta 21A" → street, number, additional (the company address from step 1 is one line). */
+function splitAddress(full: string): { street: string; number: string; additional: string } {
+  const m = full.trim().match(/^(.+?)\s+(\d+)([A-Za-z]?)\s*$/)
+  return m ? { street: m[1], number: m[2], additional: m[3].toUpperCase() } : { street: full.trim(), number: '', additional: '' }
+}
 
 export default function OnboardingStep2() {
   const params = useParams()
@@ -49,9 +57,12 @@ export default function OnboardingStep2() {
         .maybeSingle()
       if (cd) {
         setCompanyName(cd.company_name ?? company.name)
+        const a = splitAddress(cd.address ?? '')
         setData((d) => ({
           ...d,
-          address: cd.address ?? '',
+          address: a.street,
+          house_number: a.number,
+          house_number_additional: a.additional,
           city: cd.city ?? '',
           postal_code: cd.postal_code ?? '',
         }))
@@ -88,6 +99,8 @@ export default function OnboardingStep2() {
         premise_id: data.premise_id.trim().toUpperCase().slice(0, 20),
         premise_type: 'premises',
         address: data.address.trim(),
+        house_number: data.house_number.trim(),
+        house_number_additional: data.house_number_additional.trim().toUpperCase() || null,
         city: data.city.trim(),
         postal_code: data.postal_code.trim(),
       })
@@ -147,6 +160,7 @@ export default function OnboardingStep2() {
       <div className="space-y-4">
         <Input
           label="Oznaka prostora *"
+          help="premise"
           value={data.premise_id}
           onChange={(e) => set('premise_id', e.target.value.toUpperCase().slice(0, 20))}
           placeholder="PS1"
@@ -154,13 +168,31 @@ export default function OnboardingStep2() {
           hint="Kratka oznaka poslovnega prostora (npr. PS1)"
           error={missing('premise_id') ? 'Obvezno polje' : undefined}
         />
-        <Input
-          label="Naslov prostora *"
-          value={data.address}
-          onChange={(e) => set('address', e.target.value)}
-          placeholder="Slovenska cesta 1"
-          error={missing('address') ? 'Obvezno polje' : undefined}
-        />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="col-span-2">
+            <Input
+              label="Ulica *"
+              value={data.address}
+              onChange={(e) => set('address', e.target.value)}
+              placeholder="Slovenska cesta"
+              error={missing('address') ? 'Obvezno polje' : undefined}
+            />
+          </div>
+          <Input
+            label="Hišna št. *"
+            value={data.house_number}
+            onChange={(e) => set('house_number', e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="21"
+            inputMode="numeric"
+            error={missing('house_number') ? 'Obvezno' : undefined}
+          />
+          <Input
+            label="Dodatek"
+            value={data.house_number_additional}
+            onChange={(e) => set('house_number_additional', e.target.value.toUpperCase().slice(0, 3))}
+            placeholder="A"
+          />
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input
             label="Poštna številka *"
@@ -182,6 +214,7 @@ export default function OnboardingStep2() {
 
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs text-gray-500">
           Samodejno bomo ustvarili elektronsko napravo <span className="font-semibold text-gray-700">EN1</span> za ta poslovni prostor.
+          Katastrske podatke (za registracijo pri FURS) boste dodali pozneje, ko bo na vrsti vodič.
         </div>
 
         {error && (
@@ -196,7 +229,7 @@ export default function OnboardingStep2() {
             ← Nazaj
           </button>
           <Button onClick={finish} loading={saving}>
-            Zaključi nastavitev →
+            Naprej v blagajno →
           </Button>
         </div>
       </div>

@@ -33,7 +33,7 @@ export default function OnboardingCompleteToast() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <p className="text-sm font-medium text-gray-900">Nastavitev končana! Blagajna je pripravljena.</p>
+        <p className="text-sm font-medium text-gray-900">Osnovna nastavitev je končana. Naslednji korak je preizkusni račun.</p>
       </div>
     </div>
   )

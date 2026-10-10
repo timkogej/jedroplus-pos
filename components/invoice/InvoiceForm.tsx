@@ -447,6 +447,7 @@ export default function InvoiceForm({
           />
           <Select
             label="Poslovni prostor"
+            help="premise"
             options={premiseOptions}
             value={premiseId}
             onChange={(e) => setPremiseId(e.target.value)}
@@ -455,6 +456,7 @@ export default function InvoiceForm({
         <div className="mt-3">
           <Select
             label="Elektronska naprava"
+            help="device"
             options={deviceOptions.length ? deviceOptions : [{ value: '', label: 'Ni naprav' }]}
             value={deviceId}
             onChange={(e) => setDeviceId(e.target.value)}

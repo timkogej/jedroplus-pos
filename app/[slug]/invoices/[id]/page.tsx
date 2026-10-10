@@ -9,6 +9,7 @@ import Header from '@/components/layout/Header'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
+import HelpTip from '@/components/help/HelpTip'
 import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
 import type { PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
@@ -361,16 +362,16 @@ export default function InvoiceDetailPage() {
             <>
               <div className="border-t border-gray-100" />
               <div className="bg-blue-50 rounded-xl p-4">
-                <p className="text-xs font-semibold text-blue-700 mb-2">Potrditev FURS</p>
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-blue-800">Potrditev FURS <HelpTip term="furs" /></p>
                 {invoice.eor && (
                   <div className="mb-1">
-                    <p className="text-xs text-blue-500">EOR</p>
+                    <p className="flex items-center gap-1.5 text-xs text-blue-800">EOR <HelpTip term="eor" /></p>
                     <p className="text-xs font-mono text-blue-900 break-all">{invoice.eor}</p>
                   </div>
                 )}
                 {invoice.zoi && (
                   <div>
-                    <p className="text-xs text-blue-500">ZOI</p>
+                    <p className="flex items-center gap-1.5 text-xs text-blue-800">ZOI <HelpTip term="zoi" /></p>
                     <p className="text-xs font-mono text-blue-900 break-all">{invoice.zoi}</p>
                   </div>
                 )}
