@@ -283,7 +283,48 @@ export default function ZReportClient({
             <p className="text-sm text-gray-500">Ni še zaključenih dni</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+          <>
+          {/* Phones: one card per report */}
+          <ul className="space-y-2 md:hidden">
+            {reports.map((r) => (
+              <li key={r.id} className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {new Date(`${r.report_date}T00:00:00`).toLocaleDateString('sl-SI')}
+                    </p>
+                    <p className="font-mono text-xs text-gray-500">{formatReportLabel(r.report_date, r.report_number)}</p>
+                  </div>
+                  {statusBadge(r)}
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                  <div>
+                    <dt className="text-xs text-gray-500">Prihodki</dt>
+                    <dd className="font-semibold text-gray-900">{eur(r.total_revenue)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-gray-500">Računi</dt>
+                    <dd className="text-gray-900">{r.total_invoices}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-gray-500">Gotovina</dt>
+                    <dd className="text-gray-900">{eur(r.total_cash)}</dd>
+                  </div>
+                </dl>
+                <button
+                  type="button"
+                  onClick={() => downloadPdf(r)}
+                  disabled={downloadingId === r.id}
+                  className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 outline-none hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand/40 disabled:opacity-50"
+                >
+                  {downloadingId === r.id ? 'Prenašam…' : 'Prenesi PDF'}
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] md:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -329,6 +370,7 @@ export default function ZReportClient({
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
 

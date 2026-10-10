@@ -55,7 +55,7 @@ export default async function InvoicesPage(props: { params: Promise<{ slug: stri
           <div className="flex flex-wrap items-center justify-end gap-2">
             <AccountingExportButton companyId={company.id} isPro={isPro} />
             <ExportInvoicesButton companyId={company.id} />
-            <Link href={`/${params.slug}/invoices/new`}>
+            <Link href={`/${params.slug}/invoices/new`} className="hidden md:inline-flex">
               <Button size="sm">
                 + Nov račun
               </Button>
