@@ -62,13 +62,13 @@ export default async function CustomerDetailPage(props: { params: Promise<{ slug
       <Header slug={params.slug} title={name} />
       <main className="flex-1 p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-5">
-          <Link href={`/${params.slug}/customers`} className="text-sm text-gray-400 hover:text-gray-600">
+          <Link href={`/${params.slug}/customers`} className="text-sm text-gray-500 hover:text-gray-600">
             ← Vse stranke
           </Link>
 
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
             <p className="text-sm font-medium text-gray-900">{name}</p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               {email}
               {s?.['Telefonska številka'] ? ` · ${s['Telefonska številka']}` : ''}
             </p>
@@ -91,14 +91,14 @@ export default async function CustomerDetailPage(props: { params: Promise<{ slug
                   Zgodovina točk
                 </h2>
                 {(ledger ?? []).length === 0 ? (
-                  <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-100 p-5">Še ni gibanj.</p>
+                  <p className="text-sm text-gray-500 bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">Še ni gibanj.</p>
                 ) : (
-                  <ul className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+                  <ul className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] divide-y divide-gray-50">
                     {(ledger ?? []).map((r) => (
                       <li key={r.id} className="flex items-start justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
                           <p className="text-sm text-gray-900">{TYPE_LABEL[r.type as string] ?? r.type}</p>
-                          <p className="text-xs text-gray-400 break-words">{r.description}</p>
+                          <p className="text-xs text-gray-500 break-words">{r.description}</p>
                           <p className="text-xs text-gray-300">{fmt(r.created_at as string)}</p>
                         </div>
                         <span className={`flex-shrink-0 text-sm font-semibold ${(r.points as number) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
@@ -111,7 +111,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ slug
               </section>
             </>
           ) : (
-            <p className="text-sm text-gray-500">Loyalty program ni vklopljen.</p>
+            <p className="text-sm text-gray-500">Program zvestobnih točk ni vklopljen.</p>
           )}
 
           <section aria-labelledby="inv-h">
@@ -119,9 +119,9 @@ export default async function CustomerDetailPage(props: { params: Promise<{ slug
               Zadnji računi
             </h2>
             {(invoices ?? []).length === 0 ? (
-              <p className="text-sm text-gray-500 bg-white rounded-2xl border border-gray-100 p-5">Ni računov.</p>
+              <p className="text-sm text-gray-500 bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">Ni računov.</p>
             ) : (
-              <ul className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+              <ul className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] divide-y divide-gray-50">
                 {(invoices ?? []).map((inv) => (
                   <li key={inv.id}>
                     <Link

@@ -31,10 +31,11 @@ Zaženi jih **po vrsti** v Supabase → SQL Editor. Vse so napisane tako, da jih
 | 027 | `027_nonfiscal_numbering.sql` | ločeno številčenje (N) za račune z nakazilom |
 | 028 | `028_premise_closure.sql` | trajno zaprtje poslovnega prostora |
 | 029 | `029_rate_limit_and_zreport_number.sql` | skupna omejitev zahtev, unikatna številka Z-poročila |
+| 030 | `030_onboarding_state.sql` | stanje vodiča (`pos_onboarding_state`), funkcija `activate_company('slug')` za vklop pravega delovanja; obstoječim podjetjem z računi vodič ne prikazuje opomnikov |
 
 ## Vrstni red glede na objavo kode
 
-- **Pred objavo kode** zaženi: 022, 023, 024, 025, 027, 028, 029 (koda piše v nove stolpce in kliče nove funkcije).
+- **Pred objavo kode** zaženi: 022, 023, 024, 025, 027, 028, 029, 030 (koda piše v nove stolpce in kliče nove funkcije).
 - **Po objavi kode** zaženi: **026** (zasebni bucket). Če ga zaženeš prej, stare javne povezave na PDF prenehajo delovati, preden jih nova koda zna podpisati.
 
 ## Preverjanje, da je baza usklajena s kodo

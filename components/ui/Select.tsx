@@ -1,19 +1,28 @@
 'use client'
 import { forwardRef, useId } from 'react'
+import HelpTip from '@/components/help/HelpTip'
+import type { GlossaryKey } from '@/lib/help/glossary'
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
+  /** Adds a "?" next to the label that explains this term. */
+  help?: GlossaryKey
   options: { value: string; label: string }[]
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, className = '', id, ...props }, ref) => {
+  ({ label, error, help, options, className = '', id, ...props }, ref) => {
     const autoId = useId()
     const selectId = id ?? autoId
     return (
     <div className="flex flex-col gap-1">
-      {label && <label htmlFor={selectId} className="text-sm font-medium text-gray-700">{label}</label>}
+      {label && (
+        <div className="flex items-center gap-1.5">
+          <label htmlFor={selectId} className="text-sm font-medium text-gray-700">{label}</label>
+          {help && <HelpTip term={help} />}
+        </div>
+      )}
       <div className="relative">
         <select
           id={selectId}
@@ -33,7 +42,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>

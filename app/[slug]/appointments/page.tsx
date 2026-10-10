@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header'
 import AppointmentInvoiceCard from '@/components/appointment/AppointmentInvoiceCard'
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
+import { ExampleAppointmentCard, ExampleInvoicePreview } from '@/components/guide/Examples'
 
 export const revalidate = 0
 
@@ -37,18 +38,33 @@ export default async function AppointmentsPage(props: { params: Promise<{ slug: 
         title="Termini"
         action={
           <Link href={`/${params.slug}/invoices/new`}>
-            <Button size="sm" className="gradient-bg text-white hover:opacity-95">+ Nov račun</Button>
+            <Button size="sm">+ Nov račun</Button>
           </Link>
         }
       />
       <main className="flex-1 p-4 md:p-6">
         {enriched.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <svg className="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <p className="text-sm text-gray-500 font-medium">Ni dokončanih terminov</p>
-            <p className="text-xs text-gray-400 mt-1">Ko so termini dokončani, se pojavijo tukaj</p>
+          <div className="mx-auto max-w-2xl space-y-6">
+            <div className="text-center">
+              <p className="text-base font-semibold text-gray-900">Ni dokončanih terminov</p>
+              <p className="mx-auto mt-1 max-w-md text-sm text-gray-600">
+                Ko v aplikaciji Jedro+ termin označite kot dokončan, se pojavi tukaj. Račun zanj izdate z enim klikom.
+              </p>
+            </div>
+
+            <section aria-label="Kako to izgleda">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Tako bo izgledalo</h2>
+              <div className="space-y-3">
+                <ExampleAppointmentCard highlight />
+                <p className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                  Pritisnite <span className="font-semibold text-gray-900">Izstavi</span> in odpre se račun
+                </p>
+                <ExampleInvoicePreview />
+              </div>
+            </section>
           </div>
         ) : (
           <div className="space-y-6 max-w-2xl mx-auto">
@@ -57,8 +73,8 @@ export default async function AppointmentsPage(props: { params: Promise<{ slug: 
                 Za izstavitev ({enriched.length})
               </h2>
               <div className="space-y-2">
-                {enriched.map((apt) => (
-                  <AppointmentInvoiceCard key={apt.id} appointment={apt} slug={params.slug} />
+                {enriched.map((apt, i) => (
+                  <AppointmentInvoiceCard key={apt.id} appointment={apt} slug={params.slug} tourFirst={i === 0} />
                 ))}
               </div>
             </section>

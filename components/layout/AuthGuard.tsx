@@ -39,5 +39,5 @@ export default function AuthGuard({ slug, company, children }: AuthGuardProps) {
     return () => data.subscription.unsubscribe()
   }, [router])
 
-  return <CompanyProvider value={company}>{children}</CompanyProvider>
+  return <CompanyProvider value={{ ...company, slug }}>{children}</CompanyProvider>
 }

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token || '')
 
     if (!user) {
-      return NextResponse.json({ error: 'No user found' }, { status: 401 })
+      return NextResponse.json({ error: 'Niste prijavljeni. Prijavite se znova.' }, { status: 401 })
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (!profile?.default_company_id) {
-      return NextResponse.json({ error: 'No company in profile' }, { status: 404 })
+      return NextResponse.json({ error: 'Vaš račun ni povezan z nobenim podjetjem.' }, { status: 404 })
     }
 
     const { data: company, error: companyError } = await supabase

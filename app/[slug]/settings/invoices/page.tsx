@@ -8,6 +8,8 @@ import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import { friendlyError } from '@/lib/errors'
+import { authFetch } from '@/lib/authFetch'
 
 // ─── Format definitions ──────────────────────────────────────────────────────
 
@@ -216,10 +218,16 @@ export default function InvoiceSettingsPage() {
 
     setSaving(false)
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err))
     } else {
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
+      // Saving this page counts as answering the VAT question in the setup guide.
+      void authFetch('/api/guide/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, action: 'vat', vatRegistered }),
+      })
     }
   }
 
@@ -241,7 +249,7 @@ export default function InvoiceSettingsPage() {
         <p className="text-sm text-gray-500 mb-6">Izberite obliko številke računa in konfigurirajte njene sestavne dele.</p>
 
         {/* ── STEP 1: Format selector ───────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 mb-4">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
             1 · Oblika številke računa
           </h3>
@@ -259,7 +267,7 @@ export default function InvoiceSettingsPage() {
         </div>
 
         {/* ── STEP 2: Configuration fields ─────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4 space-y-4">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 mb-4 space-y-4">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             2 · Nastavitve
           </h3>
@@ -298,7 +306,7 @@ export default function InvoiceSettingsPage() {
             {currentDef?.fixedSeparator !== undefined ? (
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">Ločilo</label>
-                <div className="px-3.5 py-2.5 rounded-lg border border-gray-100 bg-gray-50 text-sm text-gray-400">
+                <div className="px-3.5 py-2.5 rounded-lg border border-gray-100 bg-gray-50 text-sm text-gray-500">
                   {currentDef.fixedSeparator === '' ? 'brez ločila (fiksno za ta format)' : `"${currentDef.fixedSeparator}" (fiksno za ta format)`}
                 </div>
               </div>
@@ -367,23 +375,23 @@ export default function InvoiceSettingsPage() {
         </div>
 
         {/* ── STEP 3: Live preview ──────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 mb-4">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
             3 · Predogled
           </h3>
           <div className="p-4 bg-gray-50 rounded-xl flex items-center justify-between gap-4">
             <p className="text-xl font-mono font-semibold text-gray-900 tracking-tight">{preview}</p>
-            <p className="text-xs text-gray-400 text-right hidden sm:block">
+            <p className="text-xs text-gray-500 text-right hidden sm:block">
               naslednji račun
             </p>
           </div>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-gray-500 mt-2">
             Oblika: {FORMAT_DEFS.find((d) => d.id === format)?.label}
           </p>
         </div>
 
         {/* ── DDV ───────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 mb-4">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">DDV</h3>
           <label className="flex items-start gap-3 cursor-pointer">
             <input
@@ -411,7 +419,7 @@ export default function InvoiceSettingsPage() {
           <Button onClick={save} loading={saving}>
             {saved ? 'Shranjeno ✓' : 'Shrani nastavitve'}
           </Button>
-          <Link href={`/${slug}/settings`} className="text-sm text-gray-400 hover:text-gray-600">
+          <Link href={`/${slug}/settings`} className="text-sm text-gray-500 hover:text-gray-600">
             Prekliči
           </Link>
         </div>

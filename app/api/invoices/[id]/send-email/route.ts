@@ -144,7 +144,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
 
     return NextResponse.json(result)
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Server error'
+    const message = err instanceof Error ? err.message : 'Napaka strežnika. Poskusite znova.'
     console.error('[send-email route] Unexpected error:', err)
     return NextResponse.json({ success: false, error: message })
   }

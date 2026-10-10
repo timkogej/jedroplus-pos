@@ -7,6 +7,7 @@ import { useCompany } from '@/components/layout/CompanyContext'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import type { PosSettings } from '@/types'
+import { friendlyError } from '@/lib/errors'
 
 type PrintFormat = 'a4' | 'thermal' | 'ask'
 
@@ -66,7 +67,7 @@ export default function PrintSettingsPage() {
       )
     setSaving(false)
     if (err) {
-      setError(err.message)
+      setError(friendlyError(err))
       return
     }
     setSaved(true)
@@ -92,7 +93,7 @@ export default function PrintSettingsPage() {
           <p className="text-sm text-gray-500">Izberite privzeti format tiskanja računov.</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3 mb-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-3 mb-5">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Format tiskanja</h3>
           {FORMAT_OPTIONS.map((opt) => (
             <button
@@ -129,7 +130,7 @@ export default function PrintSettingsPage() {
           <Button onClick={save} loading={saving}>
             {saved ? 'Shranjeno ✓' : 'Shrani nastavitve'}
           </Button>
-          <Link href={`/${slug}/settings`} className="text-sm text-gray-400 hover:text-gray-600">
+          <Link href={`/${slug}/settings`} className="text-sm text-gray-500 hover:text-gray-600">
             Prekliči
           </Link>
         </div>

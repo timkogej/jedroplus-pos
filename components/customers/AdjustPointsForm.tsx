@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { authFetch } from '@/lib/authFetch'
+import { friendlyError } from '@/lib/errors'
 
 export default function AdjustPointsForm({
   companyId,
@@ -37,14 +38,14 @@ export default function AdjustPointsForm({
       setDone(true)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Napaka')
+      setError(friendlyError(err, 'Napaka'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <form onSubmit={submit} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+    <form onSubmit={submit} className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-3">
       <h2 className="text-sm font-semibold text-gray-900">Ročni popravek točk</h2>
       <p className="text-xs text-gray-500">
         Pozitivno število doda točke, negativno jih odšteje (pod 0 ne gre). Vsak popravek se zabeleži z razlogom in vašim e-naslovom.

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 
     const ownCompanyId = await getUserCompanyId(auth.user.id)
     if (!ownCompanyId || ownCompanyId !== report.company_id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      return NextResponse.json({ error: 'Za to dejanje nimate dovoljenja.' }, { status: 403 })
     }
 
     const ctx = await loadZReportPdfContext(
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
       filename: `${reportLabel}.pdf`,
     })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Server error'
+    const message = err instanceof Error ? err.message : 'Napaka strežnika. Poskusite znova.'
     console.error('[z-report pdf] Error:', err)
     return NextResponse.json({ error: message }, { status: 500 })
   }

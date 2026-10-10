@@ -107,7 +107,7 @@ const sections = [
   },
   {
     key: 'loyalty',
-    title: 'Loyalty točke',
+    title: 'Zvestobne točke',
     description: 'Nagrajujte stranke s točkami za vsak nakup',
     Icon: GiftIcon,
   },
@@ -129,14 +129,14 @@ export default async function SettingsPage(props: { params: Promise<{ slug: stri
     <div className="flex flex-col min-h-screen">
       <Header slug={params.slug} title="Nastavitve" />
       <main className="flex-1 p-4 md:p-6 max-w-2xl mx-auto w-full">
-        <div className="bg-white rounded-2xl border border-gray-100 px-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] px-5">
           {sections.map((section, i) => (
             <Link
               key={section.key}
               href={`/${params.slug}/settings/${section.key}`}
               className={`group flex items-center gap-4 py-4 ${i < sections.length - 1 ? 'border-b border-gray-100' : ''}`}
             >
-              <span className="text-gray-400 group-hover:text-gray-900 transition-colors duration-150 flex-shrink-0">
+              <span className="text-gray-500 group-hover:text-gray-900 transition-colors duration-150 flex-shrink-0">
                 <section.Icon />
               </span>
               <div className="flex-1 min-w-0">

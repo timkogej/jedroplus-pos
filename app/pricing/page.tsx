@@ -20,7 +20,7 @@ const PLANS = {
       'Izdaja in FURS potrjevanje računov',
       'Mobilna blagajna',
       'Arhiv računov in PDF',
-      'Pošiljanje računov po emailu',
+      'Pošiljanje računov po e-pošti',
       'Spletna plačila (Stripe)',
       'Dashboard statistike',
       'CSV export računov',
@@ -39,7 +39,7 @@ const PLANS = {
       'Neomejeni računi',
       'Več poslovnih prostorov',
       'Darilni boni',
-      'Loyalty točke',
+      'Zvestobne točke',
       'Zaloge in dobavnice',
       'Paketne storitve',
       'Računovodski izvoz',
@@ -231,7 +231,7 @@ function PricingPageInner() {
                 }`}
               >
                 {isPro && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 gradient-bg text-white text-xs font-semibold px-3 py-1 rounded-full">
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#1d1d1f] text-white text-xs font-semibold px-3 py-1 rounded-full">
                     Priporočeno
                   </span>
                 )}

@@ -1,9 +1,11 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
+import HelpTip from '@/components/help/HelpTip'
 import { authFetch } from '@/lib/authFetch'
 import { formatReportLabel } from '@/lib/z-report/calculate'
 import type { ZReportTotals } from '@/lib/z-report/calculate'
@@ -15,6 +17,10 @@ interface Props {
   premiseId: string | null
   deviceId: string | null
   today: string
+  /** The day being closed (YYYY-MM-DD) — today unless picked from the unclosed days. */
+  selectedDate: string
+  /** Past days (oldest first) that have invoices but no Z-report yet. */
+  openDays: string[]
   currency: string
   initialTodayReport: ZReport | null
   preview: ZReportTotals | null
@@ -27,6 +33,8 @@ export default function ZReportClient({
   premiseId,
   deviceId,
   today,
+  selectedDate,
+  openDays,
   currency,
   initialTodayReport,
   preview,
@@ -40,6 +48,11 @@ export default function ZReportClient({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+
+  const isToday = selectedDate === today
+  const dateLong = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString('sl-SI', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const dateShort = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('sl-SI', { day: 'numeric', month: 'numeric', year: 'numeric' })
 
   const symbol = currency === 'EUR' ? '€' : currency
   const eur = (n: number) => `${(n ?? 0).toFixed(2)} ${symbol}`
@@ -56,7 +69,7 @@ export default function ZReportClient({
       const res = await authFetch('/api/z-report/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId, premiseId, deviceId, reportDate: today, notes: notes || null }),
+        body: JSON.stringify({ companyId, premiseId, deviceId, reportDate: selectedDate, notes: notes || null }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -68,6 +81,11 @@ export default function ZReportClient({
       setReports((prev) => [data.report as ZReport, ...prev])
       setModalOpen(false)
       setLoading(false)
+      if (!isToday) {
+        // Move on to the next unclosed day, or back to today when none is left.
+        const next = openDays.find((d) => d !== selectedDate)
+        router.replace(next ? `/${slug}/z-report?date=${next}` : `/${slug}/z-report`)
+      }
       router.refresh()
     } catch {
       setError('Napaka pri zaključevanju')
@@ -123,21 +141,19 @@ export default function ZReportClient({
   function statusBadge(report: ZReport) {
     const isDemo = (report.furs_response as { demo?: boolean } | null)?.demo === true
     if (report.status === 'error') return <Badge variant="error">Napaka</Badge>
-    if (report.furs_confirmed) return <Badge variant="success">Potrjeno FURS</Badge>
-    if (isDemo) return <Badge variant="warning">TEST</Badge>
+    if (report.furs_confirmed) return <Badge variant="success">Potrjeno pri FURS</Badge>
+    if (isDemo) return <Badge variant="warning">TESTNI</Badge>
     return <Badge variant="success">Zaključeno</Badge>
   }
 
   return (
     <div className="space-y-6">
       {/* Today's status header */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-sm font-semibold text-gray-900">Današnji dan</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {new Date(`${today}T00:00:00`).toLocaleDateString('sl-SI', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
+            <p className="text-sm font-semibold text-gray-900">{isToday ? 'Današnji dan' : 'Nezaključen dan'}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{dateLong(selectedDate)}</p>
           </div>
           {todayReport ? (
             <span className="inline-flex items-center gap-2 text-sm font-medium text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
@@ -149,7 +165,7 @@ export default function ZReportClient({
           ) : (
             <span className="inline-flex items-center gap-2 text-sm font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-lg">
               <span className="w-2 h-2 rounded-full bg-red-500" />
-              Danes še ni zaključeno
+              {isToday ? 'Danes še ni zaključeno' : 'Dan še ni zaključen'}
             </span>
           )}
         </div>
@@ -159,16 +175,53 @@ export default function ZReportClient({
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
       )}
 
+      {/* Past days that were never closed */}
+      {openDays.length > 0 && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-semibold text-red-900">
+            {openDays.length === 1 ? 'En dan še ni zaključen' : `${openDays.length} dni še ni zaključenih`}
+          </p>
+          <p className="mt-0.5 text-xs text-red-700">Izberite dan, ki ga želite zaključiti.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {openDays.map((d) => (
+              <Link
+                key={d}
+                href={`/${slug}/z-report?date=${d}`}
+                aria-current={d === selectedDate ? 'date' : undefined}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                  d === selectedDate
+                    ? 'border-red-600 bg-red-600 text-white'
+                    : 'border-red-300 bg-white text-red-800 hover:bg-red-100'
+                }`}
+              >
+                {dateShort(d)}
+              </Link>
+            ))}
+            {!isToday && (
+              <Link
+                href={`/${slug}/z-report`}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Nazaj na danes
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Close day section */}
       {!todayReport ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 space-y-5">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Pregled prometa danes</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Vrednosti pred zaključkom blagajne</p>
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              {isToday ? 'Pregled prometa danes' : `Pregled prometa za ${dateShort(selectedDate)}`}
+              <HelpTip term="zReport" />
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">Vrednosti pred zaključkom dneva</p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <PreviewStat label="Prihodki danes" value={eur(preview?.total_revenue ?? 0)} highlight />
+            <PreviewStat label={isToday ? 'Prihodki danes' : 'Prihodki'} value={eur(preview?.total_revenue ?? 0)} highlight />
             <PreviewStat label="Število računov" value={String(preview?.total_invoices ?? 0)} />
             <PreviewStat label="Gotovina" value={eur(preview?.total_cash ?? 0)} />
             <PreviewStat label="Kartica" value={eur(preview?.total_card ?? 0)} />
@@ -189,13 +242,13 @@ export default function ZReportClient({
 
           <button
             onClick={() => setModalOpen(true)}
-            className="w-full gradient-bg text-white font-semibold text-sm rounded-xl py-3.5 shadow-sm hover:opacity-95 transition-opacity"
+            className="w-full rounded-xl bg-[#1d1d1f] py-3.5 text-sm font-semibold text-white shadow-sm outline-none transition-colors hover:bg-black focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2"
           >
             Zaključi dan
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
               <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -206,7 +259,7 @@ export default function ZReportClient({
               <p className="text-sm font-semibold text-gray-900">
                 Blagajna zaključena ob {closedTime(todayReport)}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 {formatReportLabel(todayReport.report_date, todayReport.report_number)} · {eur(todayReport.total_revenue)} · {todayReport.total_invoices} računov
               </p>
             </div>
@@ -226,11 +279,52 @@ export default function ZReportClient({
       <div>
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Pretekla Z-poročila</h2>
         {reports.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+          <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-10 text-center">
             <p className="text-sm text-gray-500">Ni še zaključenih dni</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <>
+          {/* Phones: one card per report */}
+          <ul className="space-y-2 md:hidden">
+            {reports.map((r) => (
+              <li key={r.id} className="rounded-2xl border border-black/[0.06] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {new Date(`${r.report_date}T00:00:00`).toLocaleDateString('sl-SI')}
+                    </p>
+                    <p className="font-mono text-xs text-gray-500">{formatReportLabel(r.report_date, r.report_number)}</p>
+                  </div>
+                  {statusBadge(r)}
+                </div>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                  <div>
+                    <dt className="text-xs text-gray-500">Prihodki</dt>
+                    <dd className="font-semibold text-gray-900">{eur(r.total_revenue)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-gray-500">Računi</dt>
+                    <dd className="text-gray-900">{r.total_invoices}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-gray-500">Gotovina</dt>
+                    <dd className="text-gray-900">{eur(r.total_cash)}</dd>
+                  </div>
+                </dl>
+                <button
+                  type="button"
+                  onClick={() => downloadPdf(r)}
+                  disabled={downloadingId === r.id}
+                  className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 outline-none hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand/40 disabled:opacity-50"
+                >
+                  {downloadingId === r.id ? 'Prenašam…' : 'Prenesi PDF'}
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table */}
+          <div className="hidden overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] md:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -276,6 +370,7 @@ export default function ZReportClient({
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
 
@@ -283,12 +378,12 @@ export default function ZReportClient({
       <Modal
         open={modalOpen}
         onClose={() => { if (!loading) setModalOpen(false) }}
-        title="Zaključi blagajno"
+        title="Zaključi dan"
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            Ali ste prepričani, da želite zaključiti blagajno za danes?
+            Ali ste prepričani, da želite zaključiti blagajno {isToday ? 'za danes' : `za ${dateShort(selectedDate)}`}?
           </p>
           <p className="text-sm text-gray-500">
             Po zaključku ne morete dodajati računov za ta datum.

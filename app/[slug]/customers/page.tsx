@@ -95,23 +95,23 @@ export default async function CustomersPage(props: {
 
           {!loyalty.loyalty_enabled && (
             <p className="text-xs text-gray-500">
-              Loyalty program ni vklopljen — točke se ne prikazujejo.{' '}
+              Program zvestobnih točk ni vklopljen — točke se ne prikazujejo.{' '}
               <Link href={`/${params.slug}/settings/loyalty`} className="text-brand hover:underline">Vklopi</Link>
             </p>
           )}
 
           {customers.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+            <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-10 text-center">
               <p className="text-sm text-gray-500 font-medium">
                 {q ? 'Ni zadetkov za to iskanje' : 'Še ni strank'}
               </p>
             </div>
           ) : (
             <>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 {total} {total === 1 ? 'stranka' : 'strank'} · stran {Math.min(page, pageCount)} od {pageCount}
               </p>
-              <ul className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+              <ul className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] divide-y divide-gray-50">
                 {customers.map((c, i) => {
                   const email = c['Email stranke']?.trim().toLowerCase() ?? ''
                   const balance = email ? Math.max(0, balances.get(email) ?? 0) : 0
@@ -119,7 +119,7 @@ export default async function CustomersPage(props: {
                     <div className="flex items-center justify-between gap-3 px-4 py-3.5">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{displayName(c)}</p>
-                        <p className="text-xs text-gray-400 truncate">
+                        <p className="text-xs text-gray-500 truncate">
                           {email || 'brez e-pošte'}
                           {c['Telefonska številka'] ? ` · ${c['Telefonska številka']}` : ''}
                         </p>

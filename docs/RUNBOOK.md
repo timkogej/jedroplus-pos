@@ -36,6 +36,13 @@ Najpogosteje je dan že zaključen (Z-poročilo) ali manjka certifikat/prostor. 
 - Zaključi se vsak dan (opomnik ob 21:00 oz. 20:00 po slovenskem času).
 - **Zaključen dan je zaklenjen**: za ta datum ni mogoče izdati računa ali storna. Dneva v prihodnosti ni mogoče zaključiti.
 
+## Vklop pravega delovanja (iz testnega okolja v produkcijo)
+Vsako novo podjetje začne v testnem okolju (`pos_settings.furs_environment = 'test'`). Računi so tam preizkusni (TESTNI). Uporabnik v vodiču opravi certifikat in registracijo prostora, nato pritisne **Zahtevaj vklop** in vam pride e-pošta.
+1. Preveri, da ima podjetje naložen veljaven certifikat in registriran prostor.
+2. V Supabase SQL Editorju zaženi: `select activate_company('slug-podjetja');`
+3. Funkcija sama preveri pogoje; če niso izpolnjeni, vrne razlog (NAPAKA: …) in ničesar ne spremeni. Ob uspehu vrne `OK: …`, nastavi `furs_environment = 'production'` in zabeleži čas vklopa (`pos_onboarding_state.activated_at`).
+4. Vodič se samodejno prestavi na korak "Prvi pravi račun".
+
 ## Poslovni prostor
 - Nov prostor: dodaj, vnesi naslov (in v produkciji katastrske podatke), pritisni **Registriraj pri FURS**.
 - **Trajno zaprtje** ("Zapri pri FURS") je nepovratno. Zavrne se, dokler pri FURS čakajo računi tega prostora. Preizkusi ga samo v FURS testnem okolju.

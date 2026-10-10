@@ -1,21 +1,28 @@
 'use client'
 import { forwardRef, useId } from 'react'
+import HelpTip from '@/components/help/HelpTip'
+import type { GlossaryKey } from '@/lib/help/glossary'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
   hint?: string
+  /** Adds a "?" next to the label that explains this term. */
+  help?: GlossaryKey
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, className = '', id, ...props }, ref) => {
+  ({ label, error, hint, help, className = '', id, ...props }, ref) => {
     const autoId = useId()
     const inputId = id ?? autoId
     const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
     return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-gray-700">{label}</label>
+        <div className="flex items-center gap-1.5">
+          <label htmlFor={inputId} className="text-sm font-medium text-gray-700">{label}</label>
+          {help && <HelpTip term={help} />}
+        </div>
       )}
       <input
         id={inputId}
@@ -32,7 +39,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {...props}
       />
       {error && <p id={`${inputId}-error`} role="alert" className="text-xs text-red-500">{error}</p>}
-      {hint && !error && <p id={`${inputId}-hint`} className="text-xs text-gray-400">{hint}</p>}
+      {hint && !error && <p id={`${inputId}-hint`} className="text-xs text-gray-500">{hint}</p>}
     </div>
     )
   }

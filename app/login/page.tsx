@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { usePosStore } from '@/store/posStore'
 import { resolveCompanyForUser } from '@/lib/auth/resolveCompany'
 import Button from '@/components/ui/Button'
+import { friendlyError } from '@/lib/errors'
 
 const loginInfoText = 'Uporabite iste prijavne podatke kot v aplikaciji Jedro+.'
 
@@ -99,7 +100,7 @@ function LoginPageInner() {
 
       go(`/${company.slug}/dashboard`)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Napaka pri prijavi'
+      const msg = friendlyError(err, 'Napaka pri prijavi')
       console.error('[login] error:', msg, err)
       setError(msg)
     } finally {
@@ -187,7 +188,7 @@ function LoginPageInner() {
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
                   disabled={loading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   tabIndex={-1}
                 >
                   {showPw ? (
@@ -222,7 +223,7 @@ function LoginPageInner() {
               </div>
             )}
 
-            <Button type="submit" loading={loading} className="w-full gradient-bg text-white hover:opacity-95" size="lg">
+            <Button type="submit" loading={loading} className="w-full" size="lg">
               {loading ? 'Prijavljam...' : 'Prijava'}
             </Button>
           </form>

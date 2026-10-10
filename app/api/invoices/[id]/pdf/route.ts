@@ -126,7 +126,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
       filename: `Racun-${invoice.invoice_number}.pdf`,
     })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Server error'
+    const message = err instanceof Error ? err.message : 'Napaka strežnika. Poskusite znova.'
     console.error('[pdf route] Error:', err)
     return NextResponse.json({ error: message }, { status: 500 })
   }

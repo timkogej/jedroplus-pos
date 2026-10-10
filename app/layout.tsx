@@ -1,18 +1,22 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Jedro+ Davčna Blagajna',
   description: 'Davčna blagajna za Jedro+ podjetja',
 }
 
+// viewport-fit=cover lets the mobile bar respect the iPhone home-indicator inset.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="sl">
-      <body className={`${inter.className} bg-gray-50 min-h-screen antialiased`}>
+      <body className="font-sans bg-[#f5f5f7] min-h-screen antialiased">
         {children}
       </body>
     </html>

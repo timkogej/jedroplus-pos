@@ -34,7 +34,7 @@ export default function MissedClosingBanner({ slug, date }: Props) {
       </svg>
       <p className="text-sm text-red-700 flex-1 min-w-0">
         Včeraj niste zaključili blagajne.{' '}
-        <Link href={`/${slug}/z-report`} className="font-semibold underline hover:no-underline">
+        <Link href={`/${slug}/z-report?date=${date}`} className="font-semibold underline hover:no-underline">
           Ustvarite Z-poročilo za {label} →
         </Link>
       </p>

@@ -8,9 +8,11 @@ import type { Appointment } from '@/types'
 interface Props {
   appointment: Appointment & { alreadyInvoiced?: boolean; clientName?: string }
   slug: string
+  /** The first card carries the data-tour markers used by the guided tour. */
+  tourFirst?: boolean
 }
 
-export default function AppointmentInvoiceCard({ appointment, slug }: Props) {
+export default function AppointmentInvoiceCard({ appointment, slug, tourFirst = false }: Props) {
   const router = useRouter()
 
   function handleInvoice() {
@@ -42,18 +44,19 @@ export default function AppointmentInvoiceCard({ appointment, slug }: Props) {
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className={`bg-white rounded-2xl border border-gray-100 p-4 flex items-center justify-between gap-4 ${appointment.alreadyInvoiced ? 'opacity-60' : ''}`}
+      data-tour={tourFirst ? 'appt-card' : undefined}
+      className={`bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4 flex items-center justify-between gap-4 ${appointment.alreadyInvoiced ? 'opacity-60' : ''}`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <p className="font-semibold text-gray-900 truncate">{appointment.clientName ?? appointment['Stranka'] ?? 'Neznana stranka'}</p>
-          {appointment.alreadyInvoiced && <Badge variant="success">Fakturirano</Badge>}
+          {appointment.alreadyInvoiced && <Badge variant="success">Račun izdan</Badge>}
         </div>
         <p className="text-sm text-gray-600 truncate">{appointment['Storitev']}</p>
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className="text-xs text-gray-500 font-medium">{dateStr}</span>
-          {ura && <span className="text-xs text-gray-400">{ura}</span>}
-          {appointment['Oseba'] && <span className="text-xs text-gray-400">· {appointment['Oseba']}</span>}
+          {ura && <span className="text-xs text-gray-500">{ura}</span>}
+          {appointment['Oseba'] && <span className="text-xs text-gray-500">· {appointment['Oseba']}</span>}
         </div>
       </div>
 
@@ -61,11 +64,11 @@ export default function AppointmentInvoiceCard({ appointment, slug }: Props) {
         <div className="text-right">
           <p className="font-semibold text-gray-900">{Number(finalPrice).toFixed(2)} €</p>
           {hasDiscount && (
-            <p className="text-xs text-gray-400 line-through">{Number(originalPrice).toFixed(2)} €</p>
+            <p className="text-xs text-gray-500 line-through">{Number(originalPrice).toFixed(2)} €</p>
           )}
         </div>
         {!appointment.alreadyInvoiced && (
-          <Button size="sm" onClick={handleInvoice}>
+          <Button size="sm" onClick={handleInvoice} data-tour={tourFirst ? 'appt-issue' : undefined}>
             Izstavi
           </Button>
         )}

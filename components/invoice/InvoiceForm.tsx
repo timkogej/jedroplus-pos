@@ -11,6 +11,7 @@ import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
 import { computeInvoiceTotals } from '@/lib/invoice/totals'
 import type { InvoiceFormData, InvoiceItemForm, PosPremise, PosDevice, PosSettings, PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
+import { friendlyError } from '@/lib/errors'
 
 interface InvoiceFormProps {
   companyId: string
@@ -212,7 +213,7 @@ export default function InvoiceForm({
       // fails, nothing is spent. We only describe the discount in the notes here.
       let finalNotes = notes
       if (clampedPoints > 0 && loyaltyEnabled) {
-        const note = `Loyalty popust: -${loyaltyDiscount.toFixed(2)} ${currencySymbol} (${clampedPoints} točk)`
+        const note = `Popust za zvestobne točke: -${loyaltyDiscount.toFixed(2)} ${currencySymbol} (${clampedPoints} točk)`
         finalNotes = finalNotes ? `${finalNotes}\n${note}` : note
       }
 
@@ -299,7 +300,7 @@ export default function InvoiceForm({
         await handleDelivery(delivery, data.invoiceId, data.pdfUrl)
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Napaka pri izstavitvi')
+      setError(friendlyError(err, 'Napaka pri izstavitvi'))
     } finally {
       setLoading(false)
     }
@@ -393,7 +394,7 @@ export default function InvoiceForm({
   return (
     <div className="space-y-4">
       {/* Client type toggle */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Vrsta stranke</h3>
         <div className="flex border border-gray-200 rounded-lg overflow-hidden w-fit">
           {(['physical', 'legal'] as const).map((type) => (
@@ -411,7 +412,7 @@ export default function InvoiceForm({
       </div>
 
       {/* Client */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Stranka</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input label="Ime in priimek" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="Janez Novak" />
@@ -428,7 +429,7 @@ export default function InvoiceForm({
       </div>
 
       {/* Invoice details */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Podrobnosti računa</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Input
@@ -446,6 +447,7 @@ export default function InvoiceForm({
           />
           <Select
             label="Poslovni prostor"
+            help="premise"
             options={premiseOptions}
             value={premiseId}
             onChange={(e) => setPremiseId(e.target.value)}
@@ -454,6 +456,7 @@ export default function InvoiceForm({
         <div className="mt-3">
           <Select
             label="Elektronska naprava"
+            help="device"
             options={deviceOptions.length ? deviceOptions : [{ value: '', label: 'Ni naprav' }]}
             value={deviceId}
             onChange={(e) => setDeviceId(e.target.value)}
@@ -462,7 +465,7 @@ export default function InvoiceForm({
       </div>
 
       {/* Items */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Postavke</h3>
           <button
@@ -488,7 +491,7 @@ export default function InvoiceForm({
                 <button
                   onClick={() => removeItem(index)}
                   disabled={items.length === 1}
-                  className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors disabled:opacity-0"
+                  className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center text-gray-500 hover:text-red-500 transition-colors disabled:opacity-0"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -572,7 +575,7 @@ export default function InvoiceForm({
                   <button
                     onClick={() => removeItem(index)}
                     disabled={items.length === 1}
-                    className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-0"
+                    className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-0"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -666,7 +669,7 @@ export default function InvoiceForm({
             </button>
           </div>
           {redeemCapped && (
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-gray-500 mt-2">
               Največ {maxRedeemablePoints} točk (mora ostati vsaj 0.01 {currencySymbol})
             </p>
           )}
@@ -679,7 +682,7 @@ export default function InvoiceForm({
       )}
 
       {/* Totals */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">{vatExempt ? 'Vmesna vsota' : 'Vmesna vsota (z DDV)'}</span>
@@ -693,7 +696,7 @@ export default function InvoiceForm({
           )}
           {loyaltyDiscount > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-green-700">🎁 Loyalty popust ({clampedPoints} točk)</span>
+              <span className="text-green-700">🎁 Popust za zvestobne točke ({clampedPoints} točk)</span>
               <span className="text-green-700 font-medium">-{loyaltyDiscount.toFixed(2)} {currencySymbol}</span>
             </div>
           )}
@@ -707,7 +710,7 @@ export default function InvoiceForm({
           )}
           <div className="flex justify-between items-center border-t border-gray-100 pt-3 mt-1">
             <span className="text-sm font-semibold text-gray-900">{vatExempt ? 'Skupaj' : 'Skupaj z DDV'}</span>
-            <span className="text-xl font-semibold gradient-text">{total.toFixed(2)} {currencySymbol}</span>
+            <span className="text-xl font-semibold text-gray-900">{total.toFixed(2)} {currencySymbol}</span>
           </div>
         </div>
       </div>

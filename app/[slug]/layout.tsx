@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import MobileNav from '@/components/layout/MobileNav'
 import AuthGuard from '@/components/layout/AuthGuard'
 import NavigationProgress from '@/components/layout/NavigationProgress'
+import { GuideProvider } from '@/components/guide/GuideProvider'
 import SubscriptionBanner from '@/components/layout/SubscriptionBanner'
 import MissedClosingBanner from '@/components/layout/MissedClosingBanner'
 import { dayBounds, localDateString } from '@/lib/z-report/calculate'
@@ -103,10 +104,11 @@ export default async function CompanyLayout(
       slug={params.slug}
       company={{ id: company.id, company_id: company.company_id, name: company.name, displayName }}
     >
+      <GuideProvider>
       <NavigationProgress />
       <div className="flex min-h-screen">
         <Sidebar slug={params.slug} companyName={displayName} />
-        <div className="flex-1 flex flex-col min-w-0 pb-16 md:ml-56 md:pb-0">
+        <div className="flex-1 flex flex-col min-w-0 pb-[calc(4rem+env(safe-area-inset-bottom))] md:ml-60 md:pb-0">
           {showMissedClosing && <MissedClosingBanner slug={params.slug} date={yesterday} />}
           {showCanceledBanner ? (
             <SubscriptionBanner
@@ -128,6 +130,7 @@ export default async function CompanyLayout(
         </div>
         <MobileNav slug={params.slug} />
       </div>
+      </GuideProvider>
     </AuthGuard>
   )
 }

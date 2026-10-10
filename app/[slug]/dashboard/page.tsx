@@ -11,6 +11,8 @@ import Button from '@/components/ui/Button'
 import { certExpiryStatus } from '@/lib/furs/certExpiry'
 import DashboardBody from './DashboardBody'
 import DashboardSkeleton from './DashboardSkeleton'
+import GuideCard from '@/components/guide/GuideCard'
+import { loadGuideData } from '@/lib/guide/facts'
 import AttentionBanner from '@/components/dashboard/AttentionBanner'
 import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
@@ -34,6 +36,7 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
     { data: activeCerts },
     { data: attentionItems },
     { data: loyaltySettings },
+    guide,
   ] = await Promise.all([
     supabase.from('pos_company_data').select('id').eq('company_id', company.id).maybeSingle(),
     supabase.from('pos_premises').select('id', { count: 'exact', head: true }).eq('company_id', company.id),
@@ -51,6 +54,7 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
       .order('created_at', { ascending: false })
       .limit(20),
     supabase.from('pos_settings').select('loyalty_enabled').eq('company_id', company.id).maybeSingle(),
+    loadGuideData(supabase, company.id),
   ])
 
   const onboardingSkipped = (await cookies()).get('onboarding_skipped')?.value === params.slug
@@ -61,7 +65,10 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
 
   // Show the FURS reminder banner whenever there's no active certificate yet —
   // until then invoices are issued in FURS test mode.
-  const showFursBanner = (activeCerts?.length ?? 0) === 0
+  const hiddenUntil = guide.state.guideHiddenUntil ? new Date(guide.state.guideHiddenUntil) : null
+  const showGuide = !guide.summary.complete && !guide.state.guideDismissed && !(hiddenUntil && hiddenUntil > new Date())
+  // The guide already explains the missing certificate; keep the reminder only when the guide is hidden.
+  const showFursBanner = (activeCerts?.length ?? 0) === 0 && !showGuide
   const certStatus = certExpiryStatus(activeCerts?.[0]?.valid_to as string | undefined)
 
   return (
@@ -75,7 +82,7 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
         title="Pregled"
         action={
           <Link href={`/${params.slug}/invoices/new`}>
-            <Button size="sm" className="gradient-bg text-white hover:opacity-95">+ Izstavi račun</Button>
+            <Button size="sm">+ Izstavi račun</Button>
           </Link>
         }
       />
@@ -83,6 +90,14 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
         <div className="max-w-4xl mx-auto space-y-6">
           {(attentionItems?.length ?? 0) > 0 && (
             <AttentionBanner items={attentionItems!} companyId={company.id} slug={params.slug} />
+          )}
+
+          {showGuide && (
+            <GuideCard
+              summary={guide.summary}
+              slug={params.slug}
+              activationRequestedAt={guide.state.activationRequestedAt}
+            />
           )}
 
           {certStatus && certStatus.state !== 'ok' && (
@@ -131,8 +146,6 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
               company={company}
               slug={params.slug}
               loyaltyEnabled={Boolean(loyaltySettings?.loyalty_enabled)}
-              premiseCount={premiseCount ?? 0}
-              hasCert={(activeCerts?.length ?? 0) > 0}
             />
           </Suspense>
         </div>
