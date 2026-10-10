@@ -106,7 +106,7 @@ export default async function CompanyLayout(
       <NavigationProgress />
       <div className="flex min-h-screen">
         <Sidebar slug={params.slug} companyName={displayName} />
-        <div className="flex-1 flex flex-col min-w-0 pb-16 md:ml-56 md:pb-0">
+        <div className="flex-1 flex flex-col min-w-0 pb-[calc(4rem+env(safe-area-inset-bottom))] md:ml-60 md:pb-0">
           {showMissedClosing && <MissedClosingBanner slug={params.slug} date={yesterday} />}
           {showCanceledBanner ? (
             <SubscriptionBanner

@@ -79,11 +79,15 @@ export default function FursStatusIndicator({ compact = false, className = '' }:
 
   return (
     <div
-      className={`${compact ? 'inline-flex rounded-full border border-gray-100 bg-white px-2.5 py-1' : 'flex px-3 py-2'} items-center gap-2 text-xs text-gray-500 ${className}`}
+      className={`${compact ? 'inline-flex rounded-full bg-black/[0.05] px-3 py-1.5' : 'flex rounded-[10px] px-2.5 py-1.5'} items-center gap-2 text-[12px] font-medium text-gray-600 ${className}`}
       title={state.message ?? ui.label}
     >
       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ui.dot}`} />
-      <span>{ui.label}</span>
+      <span>
+        {/* On phones the bar is tight: drop the "FURS: " prefix there. */}
+        <span className={compact ? 'hidden sm:inline' : undefined}>FURS: </span>
+        {ui.label.replace(/^FURS: /, '')}
+      </span>
     </div>
   )
 }
