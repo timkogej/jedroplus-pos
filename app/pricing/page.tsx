@@ -20,7 +20,7 @@ const PLANS = {
       'Izdaja in FURS potrjevanje računov',
       'Mobilna blagajna',
       'Arhiv računov in PDF',
-      'Pošiljanje računov po emailu',
+      'Pošiljanje računov po e-pošti',
       'Spletna plačila (Stripe)',
       'Dashboard statistike',
       'CSV export računov',

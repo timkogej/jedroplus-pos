@@ -204,7 +204,7 @@ export default async function DashboardBody({ company, slug, loyaltyEnabled, pre
             <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-gray-900">
-                  {uninvoicedCount} {uninvoicedCount === 1 ? 'termin čaka' : 'terminov čaka'} na fakturiranje
+                  {uninvoicedCount} {uninvoicedCount === 1 ? 'termin čaka' : 'terminov čaka'} na izstavitev računa
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">Dokončani termini brez računa</p>
               </div>

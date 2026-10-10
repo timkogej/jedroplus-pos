@@ -180,10 +180,10 @@ export default function InvoiceDetailPage() {
   const isDemo = (invoice.furs_response as { demo?: boolean })?.demo === true
 
   function statusBadge() {
-    if (invoice!.status === 'storno') return <Badge variant="error">STORNO RAČUN</Badge>
+    if (invoice!.status === 'storno') return <Badge variant="error">STORNO</Badge>
     if (invoice!.status === 'storno_original') return <Badge variant="neutral">STORNIRAN</Badge>
-    if (invoice!.status === 'cancelled') return <Badge variant="error">Storniran</Badge>
-    if (isDemo) return <Badge variant="warning">TEST</Badge>
+    if (invoice!.status === 'cancelled') return <Badge variant="error">STORNIRAN</Badge>
+    if (isDemo) return <Badge variant="warning">TESTNI</Badge>
     if (invoice!.eor) return <Badge variant="success">Potrjeno pri FURS</Badge>
     return <Badge variant="warning">Čaka potrditev FURS</Badge>
   }

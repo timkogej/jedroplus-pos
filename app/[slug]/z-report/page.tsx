@@ -80,7 +80,7 @@ export default async function ZReportPage(props: {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header slug={params.slug} title="Dnevni zaključek blagajne" />
+      <Header slug={params.slug} title="Z-poročilo" />
       <main className="flex-1 p-4 md:p-6">
         <div className="max-w-3xl mx-auto">
           <ZReportClient

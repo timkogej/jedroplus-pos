@@ -140,8 +140,8 @@ export default function ZReportClient({
   function statusBadge(report: ZReport) {
     const isDemo = (report.furs_response as { demo?: boolean } | null)?.demo === true
     if (report.status === 'error') return <Badge variant="error">Napaka</Badge>
-    if (report.furs_confirmed) return <Badge variant="success">Potrjeno FURS</Badge>
-    if (isDemo) return <Badge variant="warning">TEST</Badge>
+    if (report.furs_confirmed) return <Badge variant="success">Potrjeno pri FURS</Badge>
+    if (isDemo) return <Badge variant="warning">TESTNI</Badge>
     return <Badge variant="success">Zaključeno</Badge>
   }
 
@@ -213,7 +213,7 @@ export default function ZReportClient({
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">{isToday ? 'Pregled prometa danes' : `Pregled prometa za ${dateShort(selectedDate)}`}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Vrednosti pred zaključkom blagajne</p>
+            <p className="text-xs text-gray-400 mt-0.5">Vrednosti pred zaključkom dneva</p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -332,7 +332,7 @@ export default function ZReportClient({
       <Modal
         open={modalOpen}
         onClose={() => { if (!loading) setModalOpen(false) }}
-        title="Zaključi blagajno"
+        title="Zaključi dan"
         size="sm"
       >
         <div className="space-y-4">

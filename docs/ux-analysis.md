@@ -442,3 +442,21 @@ Obstajajo (razdelek 0). Predlogi so majhni (razdelek 4). Nobena odločitev ni od
 
 ---
 *Vse trditve so iz izvorne kode na dan 2026-10-09. Trditve o videzu (kontrast, razmiki) so izračunane, ne izmerjene na zaslonu. Označene s "(ni ponovno preverjeno)" izhajajo iz starejše kopije in jih je treba pred izvedbo potrditi.*
+
+---
+
+## 9. Uveljavljeni izrazi (korak 1, narejeno)
+
+Ti izrazi veljajo v vmesniku. Novo besedilo naj jih uporablja.
+
+| Pojem | Izraz v vmesniku |
+|---|---|
+| Dnevni zaključek | meni in naslov **Z-poročilo**, dejanje **Zaključi dan** |
+| Testni račun | značka **TESTNI**, stanje **Testni način** (ne "demo", ne "TEST") |
+| Potrditev FURS | **Potrjeno pri FURS** / **Čaka potrditev FURS** |
+| Storno | **STORNO** (storno račun), **STORNIRAN** (razveljavljen račun) |
+| E-pošta | **e-pošta** (ne "email") |
+| Račun | **račun**, **račun izdan** (ne "fakturirano") |
+| Točke | **zvestobne točke** (ne "loyalty") |
+
+Nespremenjeno: PDF-ji, e-pošte, CSV izvozi in sporočila strežnika (npr. "TESTNI NACIN" na vodnem žigu PDF-ja), ker so ločen del.

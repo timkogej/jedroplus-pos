@@ -197,7 +197,7 @@ export default function OnboardingStep1() {
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
-            label="Email podjetja *"
+            label="E-pošta podjetja *"
             type="email"
             value={data.email}
             onChange={(e) => set('email', e.target.value)}

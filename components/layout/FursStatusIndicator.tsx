@@ -9,7 +9,7 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000
 
 const STATUS_UI: Record<Exclude<FursStatus, 'loading'>, { dot: string; label: string }> = {
   connected: { dot: 'bg-green-500', label: 'FURS: Povezan' },
-  demo:      { dot: 'bg-amber-400', label: 'FURS: Demo način' },
+  demo:      { dot: 'bg-amber-400', label: 'FURS: Testni način' },
   error:     { dot: 'bg-red-500',   label: 'FURS: Napaka' },
 }
 

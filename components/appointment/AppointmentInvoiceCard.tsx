@@ -47,7 +47,7 @@ export default function AppointmentInvoiceCard({ appointment, slug }: Props) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <p className="font-semibold text-gray-900 truncate">{appointment.clientName ?? appointment['Stranka'] ?? 'Neznana stranka'}</p>
-          {appointment.alreadyInvoiced && <Badge variant="success">Fakturirano</Badge>}
+          {appointment.alreadyInvoiced && <Badge variant="success">Račun izdan</Badge>}
         </div>
         <p className="text-sm text-gray-600 truncate">{appointment['Storitev']}</p>
         <div className="flex items-center gap-1.5 mt-0.5">

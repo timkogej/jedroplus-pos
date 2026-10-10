@@ -14,10 +14,10 @@ export const revalidate = 0
 function statusBadge(status: string, eor: string | null, isDemo: boolean) {
   if (status === 'storno') return <Badge variant="error">STORNO</Badge>
   if (status === 'storno_original') return <Badge variant="neutral">STORNIRAN</Badge>
-  if (status === 'cancelled') return <Badge variant="error">Storniran</Badge>
-  if (isDemo) return <Badge variant="warning">TEST</Badge>
-  if (status === 'draft') return <Badge variant="warning">Čakam FURS</Badge>
-  if (eor) return <Badge variant="success">Potrjeno FURS</Badge>
+  if (status === 'cancelled') return <Badge variant="error">STORNIRAN</Badge>
+  if (isDemo) return <Badge variant="warning">TESTNI</Badge>
+  if (status === 'draft') return <Badge variant="warning">Čaka potrditev FURS</Badge>
+  if (eor) return <Badge variant="success">Potrjeno pri FURS</Badge>
   return <Badge variant="info">Izstavljen</Badge>
 }
 
