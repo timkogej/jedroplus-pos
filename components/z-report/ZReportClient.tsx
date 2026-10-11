@@ -11,6 +11,7 @@ import { formatReportLabel } from '@/lib/z-report/calculate'
 import type { ZReportTotals } from '@/lib/z-report/calculate'
 import type { ZReport } from '@/types'
 import Alert from '@/components/ui/Alert'
+import Icon from '@/components/ui/Icon'
 
 interface Props {
   slug: string
@@ -158,9 +159,7 @@ export default function ZReportClient({
           </div>
           {todayReport ? (
             <span className="inline-flex items-center gap-2 text-sm font-medium text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+              <Icon name="check" className="w-4 h-4" strokeWidth={2} />
               Zaključeno ob {closedTime(todayReport)}
             </span>
           ) : (
@@ -252,9 +251,7 @@ export default function ZReportClient({
         <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+              <Icon name="check" className="w-5 h-5 text-green-600" strokeWidth={2} />
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-900">
@@ -359,9 +356,7 @@ export default function ZReportClient({
                           className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-brand disabled:opacity-50"
                           title="Prenesi PDF"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
+                          <Icon name="download" className="w-4 h-4" />
                           PDF
                         </button>
                       </td>

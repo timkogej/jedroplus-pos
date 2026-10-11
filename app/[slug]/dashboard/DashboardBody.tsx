@@ -5,6 +5,7 @@ import RevenueChartLazy from '@/components/dashboard/RevenueChartLazy'
 import type { RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
 import { ljDateString, ljMidnightUtc } from '@/lib/time'
+import Icon from '@/components/ui/Icon'
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: 'green' | 'red' }) {
   const subColor = accent === 'green' ? 'text-green-600' : accent === 'red' ? 'text-red-600' : 'text-gray-500'
@@ -223,9 +224,7 @@ export default async function DashboardBody({ company, slug, loyaltyEnabled }: D
 
             {!recentInvoices?.length ? (
               <div className="bg-white rounded-2xl border border-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-10 text-center">
-                <svg className="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <Icon name="document" className="w-10 h-10 text-gray-300 mx-auto mb-3" strokeWidth={1.5} />
                 <p className="text-sm text-gray-500">Ni izstavljenih računov</p>
                 <Link href={`/${slug}/invoices/new`} className="inline-block mt-2 text-sm text-brand hover:underline">
                   Izstavite prvi račun →

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { STEP_COPY } from '@/lib/help/steps'
 import type { GuideStep, GuideStatus } from '@/lib/guide/steps'
 import { useGuide } from '@/components/guide/GuideProvider'
+import Icon from '@/components/ui/Icon'
 
 export function StatusIcon({ status }: { status: GuideStatus }) {
   const base = 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full'
@@ -12,9 +13,7 @@ export function StatusIcon({ status }: { status: GuideStatus }) {
     case 'done':
       return (
         <span className={`${base} bg-green-500 text-white`} aria-label="Opravljeno">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.2} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
+          <Icon name="check" className="h-3.5 w-3.5" strokeWidth={3.2} />
         </span>
       )
     case 'current':
@@ -26,17 +25,13 @@ export function StatusIcon({ status }: { status: GuideStatus }) {
     case 'waiting':
       return (
         <span className={`${base} bg-amber-100 text-amber-700`} aria-label="Čaka">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <Icon name="clock" className="h-3.5 w-3.5" strokeWidth={2.4} />
         </span>
       )
     case 'locked':
       return (
         <span className={`${base} bg-gray-100 text-gray-500`} aria-label="Zaklenjeno">
-          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V8a4 4 0 00-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" />
-          </svg>
+          <Icon name="lock" className="h-3 w-3" strokeWidth={2.4} />
         </span>
       )
     default:
@@ -150,16 +145,7 @@ export default function GuideStepList({
                 {!open && <span className="block truncate text-[13px] text-gray-500">{copy.why}</span>}
               </span>
               {step.status === 'waiting' && <span className="flex-shrink-0 text-xs font-medium text-amber-700">Čaka na Jedro+</span>}
-              <svg
-                className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.2}
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+              <Icon name="chevronDown" className="`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''" strokeWidth={2.2} />
             </button>
 
             {open && (

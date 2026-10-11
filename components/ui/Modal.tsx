@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useId, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Icon from '@/components/ui/Icon'
 
 interface ModalProps {
   open: boolean
@@ -102,9 +103,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
                   aria-label="Zapri"
                   className="p-1.5 rounded-lg text-gray-500 hover:text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <Icon name="close" className="w-4 h-4" strokeWidth={2} />
                 </button>
               </div>
             )}

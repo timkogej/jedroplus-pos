@@ -4,7 +4,7 @@
  * them for real data.
  */
 const exampleTag = (
-  <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
+  <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand">
     Primer
   </span>
 )

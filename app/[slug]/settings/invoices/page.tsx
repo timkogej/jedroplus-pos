@@ -11,6 +11,7 @@ import Select from '@/components/ui/Select'
 import { friendlyError } from '@/lib/errors'
 import { authFetch } from '@/lib/authFetch'
 import Alert from '@/components/ui/Alert'
+import Icon from '@/components/ui/Icon'
 
 // ─── Format definitions ──────────────────────────────────────────────────────
 
@@ -365,9 +366,7 @@ export default function InvoiceSettingsPage() {
           {/* Premise/device note */}
           {currentDef?.hasPremise && (
             <div className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-xl">
-              <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <Icon name="info" className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" strokeWidth={2} />
               <p className="text-xs text-gray-500">
                 Koda poslovnega prostora in naprave se samodejno vzame iz aktivnega poslovnega prostora pri izstavitvi računa.
               </p>

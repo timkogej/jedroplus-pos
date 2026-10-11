@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button'
 import { isValidInterval, isValidPlan } from '@/lib/subscription-plans'
 import type { PlanId, BillingInterval } from '@/lib/subscription-plans'
 import Alert from '@/components/ui/Alert'
+import Icon from '@/components/ui/Icon'
 
 const PLANS = {
   plus: {
@@ -67,9 +68,7 @@ const FAQ = [
 
 function CheckIcon() {
   return (
-    <svg className="w-4 h-4 flex-shrink-0 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" />
-    </svg>
+    <Icon name="check" className="w-4 h-4 flex-shrink-0 text-brand" strokeWidth={2.2} />
   )
 }
 
@@ -289,9 +288,7 @@ function PricingPageInner() {
               <details key={item.q} className="bg-white border border-gray-200 rounded-xl px-5 py-4 group">
                 <summary className="flex items-center justify-between cursor-pointer list-none text-sm font-medium text-gray-900">
                   {item.q}
-                  <svg className="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <Icon name="chevronDown" className="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180" strokeWidth={2} />
                 </summary>
                 <p className="text-sm text-gray-500 mt-3 leading-relaxed">{item.a}</p>
               </details>
