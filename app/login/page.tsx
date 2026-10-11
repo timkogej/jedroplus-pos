@@ -14,7 +14,7 @@ const loginInfoText = 'Uporabite iste prijavne podatke kot v aplikaciji Jedro+.'
 function LoginInfoIcon() {
   return (
     <span
-      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[10px] font-semibold text-gray-500"
+      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-300 text-[11px] font-semibold text-gray-500"
       title={loginInfoText}
       aria-label={loginInfoText}
     >
@@ -146,7 +146,7 @@ function LoginPageInner() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="rounded-xl border border-brand/15 bg-gradient-to-r from-brand/8 via-[#2F80ED]/8 to-[#2AD4C5]/8 px-3 py-2.5 text-sm text-gray-600">
-              <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-brand ring-1 ring-brand/20">
+              <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-brand ring-1 ring-brand/20">
                 i
               </span>
               {loginInfoText}

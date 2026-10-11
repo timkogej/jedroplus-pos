@@ -71,7 +71,7 @@ export default function AccountingExportButton({
           </svg>
           <span className="sm:hidden">Excel</span>
           <span className="hidden sm:inline">Računovodski izvoz</span>
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-brand/10 text-brand rounded-full leading-none">
+          <span className="text-[11px] font-semibold px-1.5 py-0.5 bg-brand/10 text-brand rounded-full leading-none">
             PRO
           </span>
         </button>
