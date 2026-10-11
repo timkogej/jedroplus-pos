@@ -4,6 +4,7 @@ import RestartTours from '@/components/guide/RestartTours'
 import { GLOSSARY } from '@/lib/help/glossary'
 import { HELP_CASES } from '@/lib/help/cases'
 import { SUPPORT_EMAIL } from '@/lib/help/contact'
+import Icon from '@/components/ui/Icon'
 
 export const revalidate = 0
 
@@ -41,9 +42,7 @@ export default async function HelpPage(props: { params: Promise<{ slug: string }
                 <details key={c.id} className="group px-5 py-3.5">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-medium text-gray-900 outline-none focus-visible:underline">
                     {c.title}
-                    <svg className="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <Icon name="chevronDown" className="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform group-open:rotate-180" strokeWidth={2.2} />
                   </summary>
                   <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-gray-600">
                     {c.steps.map((s) => (

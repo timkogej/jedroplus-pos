@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { authFetch } from '@/lib/authFetch'
+import Icon from '@/components/ui/Icon'
 
 interface SubscriptionBannerProps {
   slug: string
@@ -66,9 +67,7 @@ export default function SubscriptionBanner({ slug, companyId, status, currentPer
               Obnovi naročnino
             </Link>
             <button onClick={dismiss} className="text-amber-700 hover:text-amber-900 p-1" title="Skrij">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <Icon name="close" className="w-4 h-4" strokeWidth={2} />
             </button>
           </div>
         </div>

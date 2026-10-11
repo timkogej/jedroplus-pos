@@ -5,6 +5,7 @@ import Input from '@/components/ui/Input'
 import { authFetch } from '@/lib/authFetch'
 import { friendlyError } from '@/lib/errors'
 import Alert from '@/components/ui/Alert'
+import Icon from '@/components/ui/Icon'
 
 interface CertificateInfo {
   tax_number: string
@@ -126,9 +127,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
           className="hidden"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-        <svg className="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-        </svg>
+        <Icon name="upload" className="w-10 h-10 text-gray-300 mx-auto mb-3" strokeWidth={1.5} />
         {file ? (
           <p className="text-sm font-medium text-gray-900">{file.name}</p>
         ) : (

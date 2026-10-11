@@ -6,6 +6,7 @@ import AppointmentInvoiceCard from '@/components/appointment/AppointmentInvoiceC
 import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import { ExampleAppointmentCard, ExampleInvoicePreview } from '@/components/guide/Examples'
+import Icon from '@/components/ui/Icon'
 
 export const revalidate = 0
 
@@ -57,9 +58,7 @@ export default async function AppointmentsPage(props: { params: Promise<{ slug: 
               <div className="space-y-3">
                 <ExampleAppointmentCard highlight />
                 <p className="flex items-center justify-center gap-2 text-sm text-gray-600">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                  </svg>
+                  <Icon name="arrowDown" className="h-4 w-4" strokeWidth={2} />
                   Pritisnite <span className="font-semibold text-gray-900">Izstavi</span> in odpre se račun
                 </p>
                 <ExampleInvoicePreview />

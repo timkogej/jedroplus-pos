@@ -52,6 +52,7 @@ Posodobljeno: 2026-10-11 (po PR #3 in #4). Prejšnja različica (maj 2026, opiso
 | `Badge` | značke stanja računa (besedila v razdelku 6). |
 | `Popover` | sidrana ploščica (Esc, klik zunaj, ostane na zaslonu); uporabljata `HelpTip` in kapsula stanja. |
 | `Card` | bela kartica z mehko obrobo. |
+| `Icon` | **edini** nabor ikon (`<Icon name="check" />`, 36 ikon, obris 24×24). Nova ikona se doda v `ICONS`, ne kot ročen `<svg>`. Ikone so dekorativne (`aria-hidden`); pomen je v besedilu ali `aria-label` na gumbu. Izjema: spinner v `Button`. |
 
 ### `components/layout`
 `Sidebar`, `Header`, `MobileNav` (+ list "Več"), `JedroLogo` (uradni logotip iz aplikacije Jedro+, `public/brand/jedro-logo.svg`), `FursStatusIndicator` (kapsula + razlaga), `AuthGuard`, `CompanyContext`, trakovi `MissedClosingBanner` in `SubscriptionBanner`, `useZReportWarning` (rdeča pika).
@@ -88,7 +89,6 @@ Posodobljeno: 2026-10-11 (po PR #3 in #4). Prejšnja različica (maj 2026, opiso
 
 ## 8. Znane vrzeli (ni narejeno)
 
-- Ikone so ročno kopirani SVG-ji (ni skupne knjižnice ali komponente).
 - Vnos količine in cene v obrazcu računa: brisanje polja vrne "1" (pri količini); vejica ni zagotovljena na vseh tipkovnicah.
 - Samo svetla tema.
 - Nekateri drobni napisi so še 12 px (temnejše, a majhno).

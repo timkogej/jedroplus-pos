@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { authFetch } from '@/lib/authFetch'
 import Alert from '@/components/ui/Alert'
+import Icon from '@/components/ui/Icon'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Vsi' },
@@ -68,9 +69,7 @@ export default function ExportInvoicesButton({ companyId }: { companyId: string 
   return (
     <>
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)} className="px-2.5 text-xs sm:px-3 sm:text-sm">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
+        <Icon name="download" className="w-4 h-4" />
         <span className="sm:hidden">CSV</span>
         <span className="hidden sm:inline">Izvozi CSV</span>
       </Button>

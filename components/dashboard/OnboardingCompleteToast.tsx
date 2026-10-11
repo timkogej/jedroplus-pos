@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Icon from '@/components/ui/Icon'
 
 /**
  * Shows a success toast after the onboarding flow finishes (step 2 redirects to
@@ -29,9 +30,7 @@ export default function OnboardingCompleteToast() {
     <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 px-4 md:bottom-6">
       <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-lg">
         <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-100">
-          <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5 13l4 4L19 7" />
-          </svg>
+          <Icon name="check" className="h-4 w-4 text-green-600" strokeWidth={2.4} />
         </div>
         <p className="text-sm font-medium text-gray-900">Osnovna nastavitev je končana. Naslednji korak je preizkusni račun.</p>
       </div>
