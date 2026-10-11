@@ -32,7 +32,7 @@ export default function MissedClosingBanner({ slug, date }: Props) {
       <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
       </svg>
-      <p className="text-sm text-red-700 flex-1 min-w-0">
+      <p className="text-sm text-red-900 flex-1 min-w-0">
         Včeraj niste zaključili blagajne.{' '}
         <Link href={`/${slug}/z-report?date=${date}`} className="font-semibold underline hover:no-underline">
           Ustvarite Z-poročilo za {label} →
@@ -43,7 +43,7 @@ export default function MissedClosingBanner({ slug, date }: Props) {
           sessionStorage.setItem(storageKey, '1')
           setDismissed(true)
         }}
-        className="text-red-400 hover:text-red-600 flex-shrink-0"
+        className="text-red-600 hover:text-red-800 flex-shrink-0"
         title="Skrij"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import CertificateUpload from '@/components/settings/CertificateUpload'
 import HelpTip from '@/components/help/HelpTip'
+import Alert from '@/components/ui/Alert'
 
 export const revalidate = 0
 
@@ -49,18 +50,26 @@ export default async function CertificatePage(props: { params: Promise<{ slug: s
           />
         </div>
 
-        {/* FURS environment info */}
-        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-amber-700">Okolje FURS</p>
-          <p className="text-sm text-amber-600 mt-1">
-            Trenutno: <strong>{settings?.furs_environment === 'production' ? 'Produkcija' : 'Test'}</strong>
-          </p>
-          <p className="text-xs text-amber-500 mt-1">
-            {settings?.furs_environment === 'test'
-              ? 'Računi se pošiljajo na testni strežnik FURS. Za pravo poslovanje preklopite na produkcijo.'
-              : 'Računi se potrjujejo pri uradnem FURS strežniku.'}
-          </p>
-        </div>
+        {/* Which FURS environment this company is in */}
+        {settings?.furs_environment === 'production' ? (
+          <Alert variant="success" title="Pravo delovanje" className="mt-4">
+            Računi se potrjujejo pri uradnem strežniku FURS.
+          </Alert>
+        ) : (
+          <Alert
+            variant="warning"
+            title="Testno okolje"
+            className="mt-4"
+            action={
+              <Link href={`/${params.slug}/guide`} className="text-sm font-medium text-amber-900 underline">
+                Odpri vodič
+              </Link>
+            }
+          >
+            Računi uradno še ne veljajo. Pravo delovanje vam vklopi ekipa Jedro+, ko sta certifikat in registracija
+            prostora opravljena.
+          </Alert>
+        )}
       </main>
     </div>
   )

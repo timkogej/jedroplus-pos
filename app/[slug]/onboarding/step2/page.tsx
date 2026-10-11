@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import OnboardingShell from '@/components/onboarding/OnboardingShell'
 import { friendlyError } from '@/lib/errors'
+import Alert from '@/components/ui/Alert'
 
 interface Form {
   premise_id: string
@@ -218,7 +219,7 @@ export default function OnboardingStep2() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
+          <Alert variant="error">{error}</Alert>
         )}
 
         <div className="flex items-center justify-between pt-1">

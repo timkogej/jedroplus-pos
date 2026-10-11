@@ -8,6 +8,7 @@ import Select from '@/components/ui/Select'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { PosPremise, PosDevice } from '@/types'
 import { friendlyError } from '@/lib/errors'
+import Alert from '@/components/ui/Alert'
 
 interface Props {
   companyId: string
@@ -313,7 +314,7 @@ export default function PremisesForm({ companyId, initialPremises, initialDevice
       </section>
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{error}</div>
+        <Alert variant="error">{error}</Alert>
       )}
       <ConfirmDialog
         open={confirmCloseId !== null}

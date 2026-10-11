@@ -13,6 +13,7 @@ import HelpTip from '@/components/help/HelpTip'
 import { printThermal } from '@/lib/invoice/thermal-print'
 import { authFetch } from '@/lib/authFetch'
 import type { PosInvoice, PosInvoiceItem, PosCompanyData } from '@/types'
+import Alert from '@/components/ui/Alert'
 
 export default function InvoiceDetailPage() {
   const params = useParams()
@@ -225,41 +226,29 @@ export default function InvoiceDetailPage() {
 
         {/* Demo mode warning */}
         {isDemo && (
-          <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl mb-5 no-print">
-            <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <p className="text-sm font-medium text-yellow-800">TESTNI NAČIN — Račun ni potrjen pri FURS</p>
-          </div>
+          <Alert variant="warning" title="Testni račun" className="mb-5 no-print">
+            Račun ni potrjen pri FURS in ni veljaven za stranko.
+          </Alert>
         )}
 
-        {/* Storno banner */}
+        {/* Storno banners */}
         {invoice.status === 'storno_original' && (
-          <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl mb-5 no-print">
-            <svg className="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-            <p className="text-sm text-gray-600">Ta račun je bil storniran. Storno račun je bil izdan v zameno.</p>
-          </div>
+          <Alert variant="info" className="mb-5 no-print">
+            Ta račun je bil storniran. Storno račun je bil izdan v zameno.
+          </Alert>
         )}
 
         {invoice.status === 'storno' && (
-          <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl mb-5 no-print">
-            <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm font-medium text-red-700">To je storno račun. Razveljavlja originalni račun.</p>
-          </div>
+          <Alert variant="info" title="To je storno račun" className="mb-5 no-print">
+            Razveljavlja originalni račun.
+          </Alert>
         )}
 
         {/* PDF warning */}
         {!invoice.pdf_url && invoice.status !== 'draft' && (
-          <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4 text-sm text-amber-700 no-print">
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+          <Alert variant="warning" className="mb-4 no-print">
             PDF ni bil generiran — račun bo prenešen lokalno.
-          </div>
+          </Alert>
         )}
 
         {/* Actions */}
@@ -415,7 +404,7 @@ export default function InvoiceDetailPage() {
             To dejanje je nepopravljivo.
           </p>
           {stornoError && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{stornoError}</p>
+            <Alert variant="error">{stornoError}</Alert>
           )}
           <div className="flex gap-2 justify-end pt-1">
             <Button

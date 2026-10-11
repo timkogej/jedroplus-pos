@@ -8,6 +8,7 @@ import { useCompany } from '@/components/layout/CompanyContext'
 import { authFetch } from '@/lib/authFetch'
 import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
+import Alert from '@/components/ui/Alert'
 
 interface SubStatus {
   subscribed: boolean
@@ -207,9 +208,7 @@ export default function SubscriptionSettingsPage() {
         )}
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 mb-4">
-            {error}
-          </div>
+          <Alert variant="error" className="mb-4">{error}</Alert>
         )}
 
         <Link href={`/${slug}/settings`} className="text-sm text-gray-500 hover:text-gray-600">

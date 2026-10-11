@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { authFetch } from '@/lib/authFetch'
 import { friendlyError } from '@/lib/errors'
+import Alert from '@/components/ui/Alert'
 
 interface CertificateInfo {
   tax_number: string
@@ -87,38 +88,24 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
     <div className="space-y-4">
       {/* Existing cert info */}
       {certInfo && (
-        <div className={`p-4 rounded-xl border ${isExpiringSoon ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
-          <div className="flex items-start gap-3">
-            <svg className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isExpiringSoon ? 'text-amber-600' : 'text-green-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            <div>
-              <p className={`text-sm font-semibold ${isExpiringSoon ? 'text-amber-700' : 'text-green-700'}`}>
-                {isExpiringSoon ? 'Certifikat kmalu poteče' : 'Certifikat aktiven'}
+        <Alert variant={isExpiringSoon ? 'warning' : 'success'} title={isExpiringSoon ? 'Certifikat kmalu poteče' : 'Certifikat je aktiven'}>
+          <div className="space-y-0.5">
+            {certInfo.tax_number && <p>Davčna številka: {certInfo.tax_number}</p>}
+            {certInfo.valid_from && (
+              <p>
+                Veljavnost: {new Date(certInfo.valid_from).toLocaleDateString('sl-SI')} –{' '}
+                {certInfo.valid_to ? new Date(certInfo.valid_to).toLocaleDateString('sl-SI') : '—'}
               </p>
-              {certInfo.tax_number && (
-                <p className="text-xs text-gray-600 mt-1">Davčna: {certInfo.tax_number}</p>
-              )}
-              {certInfo.valid_from && (
-                <p className="text-xs text-gray-500">
-                  Veljavnost: {new Date(certInfo.valid_from).toLocaleDateString('sl-SI')} –{' '}
-                  {certInfo.valid_to ? new Date(certInfo.valid_to).toLocaleDateString('sl-SI') : '—'}
-                </p>
-              )}
-              {connectionTest !== 'idle' && (
-                <p className={`text-xs mt-1 ${
-                  connectionTest === 'ok' ? 'text-green-600'
-                    : connectionTest === 'failed' ? 'text-red-600'
-                    : 'text-gray-500'
-                }`}>
-                  {connectionTest === 'testing' && '🔄 Testiram povezavo s FURS...'}
-                  {connectionTest === 'ok' && '✅ Povezava s FURS uspešna'}
-                  {connectionTest === 'failed' && '❌ Napaka pri povezavi s FURS'}
-                </p>
-              )}
-            </div>
+            )}
+            {connectionTest !== 'idle' && (
+              <p className="font-medium">
+                {connectionTest === 'testing' && 'Testiram povezavo s FURS …'}
+                {connectionTest === 'ok' && 'Povezava s FURS je uspešna.'}
+                {connectionTest === 'failed' && 'Povezava s FURS ni uspela.'}
+              </p>
+            )}
           </div>
-        </div>
+        </Alert>
       )}
 
       {/* Upload area */}
@@ -161,9 +148,7 @@ export default function CertificateUpload({ companyId, existingCert }: Props) {
       />
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-          {error}
-        </div>
+        <Alert variant="error">{error}</Alert>
       )}
 
       <Button

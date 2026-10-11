@@ -52,20 +52,20 @@ export default function SubscriptionBanner({ slug, companyId, status, currentPer
 
   if (status === 'canceled') {
     return (
-      <div className="bg-orange-50 border-b border-orange-200 px-4 py-2.5">
+      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5">
         <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
-          <p className="text-sm text-orange-800">
+          <p className="text-sm text-amber-900">
             Vaša naročnina je preklicana. Dostop imate do{' '}
             <span className="font-semibold">{formatDate(currentPeriodEnd)}</span>.
           </p>
           <div className="flex items-center gap-2 flex-shrink-0">
             <Link
               href="/pricing"
-              className="text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 px-3 py-1.5 rounded-lg"
+              className="text-sm font-medium text-white bg-[#1d1d1f] hover:bg-black px-3 py-1.5 rounded-lg"
             >
               Obnovi naročnino
             </Link>
-            <button onClick={dismiss} className="text-orange-500 hover:text-orange-700 p-1" title="Skrij">
+            <button onClick={dismiss} className="text-amber-700 hover:text-amber-900 p-1" title="Skrij">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>

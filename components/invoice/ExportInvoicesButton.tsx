@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import { authFetch } from '@/lib/authFetch'
+import Alert from '@/components/ui/Alert'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Vsi' },
@@ -102,7 +103,7 @@ export default function ExportInvoicesButton({ companyId }: { companyId: string 
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+            <Alert variant="error">{error}</Alert>
           )}
 
           <div className="flex gap-2 justify-end pt-1">
