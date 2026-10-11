@@ -10,6 +10,7 @@ import { authFetch } from '@/lib/authFetch'
 import { formatReportLabel } from '@/lib/z-report/calculate'
 import type { ZReportTotals } from '@/lib/z-report/calculate'
 import type { ZReport } from '@/types'
+import Alert from '@/components/ui/Alert'
 
 interface Props {
   slug: string
@@ -172,7 +173,7 @@ export default function ZReportClient({
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+        <Alert variant="error">{error}</Alert>
       )}
 
       {/* Past days that were never closed */}
@@ -393,7 +394,7 @@ export default function ZReportClient({
             <div className="flex justify-between mt-1"><span className="text-gray-500">Računi</span><span className="font-medium text-gray-900">{preview?.total_invoices ?? 0}</span></div>
           </div>
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+            <Alert variant="error">{error}</Alert>
           )}
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="secondary" size="sm" onClick={() => setModalOpen(false)} disabled={loading}>

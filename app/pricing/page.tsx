@@ -9,6 +9,7 @@ import { authFetch } from '@/lib/authFetch'
 import Button from '@/components/ui/Button'
 import { isValidInterval, isValidPlan } from '@/lib/subscription-plans'
 import type { PlanId, BillingInterval } from '@/lib/subscription-plans'
+import Alert from '@/components/ui/Alert'
 
 const PLANS = {
   plus: {
@@ -273,9 +274,7 @@ function PricingPageInner() {
         </div>
 
         {error && (
-          <div className="max-w-3xl mx-auto mt-5 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 text-center">
-            {error}
-          </div>
+          <Alert variant="error" className="max-w-3xl mx-auto mt-5 text-center">{error}</Alert>
         )}
 
         <p className="text-center text-sm text-gray-500 mt-8">

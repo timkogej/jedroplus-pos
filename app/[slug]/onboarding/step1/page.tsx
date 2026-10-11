@@ -9,6 +9,7 @@ import OnboardingShell from '@/components/onboarding/OnboardingShell'
 import { friendlyError } from '@/lib/errors'
 import { authFetch } from '@/lib/authFetch'
 import HelpTip from '@/components/help/HelpTip'
+import Alert from '@/components/ui/Alert'
 
 interface Form {
   company_name: string
@@ -286,7 +287,7 @@ export default function OnboardingStep1() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
+          <Alert variant="error">{error}</Alert>
         )}
 
         <div className="flex justify-end pt-1">

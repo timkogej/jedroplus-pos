@@ -8,6 +8,7 @@ import Header from '@/components/layout/Header'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { friendlyError } from '@/lib/errors'
+import Alert from '@/components/ui/Alert'
 
 interface CompanyData {
   id?: string
@@ -213,7 +214,7 @@ export default function CompanyDataPage() {
         </div>
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 mb-4">{error}</div>
+          <Alert variant="error" className="mb-4">{error}</Alert>
         )}
 
         <div className="flex items-center gap-3">

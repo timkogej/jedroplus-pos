@@ -17,6 +17,7 @@ import AttentionBanner from '@/components/dashboard/AttentionBanner'
 import RevenueChart, { type RevenuePoint } from '@/components/dashboard/RevenueChart'
 import type { PosInvoice } from '@/types'
 import { ljDateString, ljMidnightUtc } from '@/lib/time'
+import Alert from '@/components/ui/Alert'
 
 export const revalidate = 0
 
@@ -101,44 +102,36 @@ export default async function DashboardPage(props: { params: Promise<{ slug: str
           )}
 
           {certStatus && certStatus.state !== 'ok' && (
-            <div
-              role="alert"
-              className={`flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${
-                certStatus.state === 'expired' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
-              }`}
+            <Alert
+              variant={certStatus.state === 'expired' ? 'error' : 'warning'}
+              title={
+                certStatus.state === 'expired'
+                  ? 'Certifikat je potekel — računov ni več mogoče potrjevati'
+                  : `Certifikat poteče čez ${certStatus.daysLeft} dni`
+              }
+              action={
+                <Link href={`/${params.slug}/settings/certificate`}>
+                  <Button size="sm">Naloži nov certifikat →</Button>
+                </Link>
+              }
             >
-              <div>
-                <p className={`text-sm font-semibold ${certStatus.state === 'expired' ? 'text-red-900' : 'text-amber-900'}`}>
-                  {certStatus.state === 'expired'
-                    ? 'FURS certifikat je potekel — računov ni več mogoče potrjevati'
-                    : `FURS certifikat poteče čez ${certStatus.daysLeft} dni`}
-                </p>
-                <p className={`mt-0.5 text-xs ${certStatus.state === 'expired' ? 'text-red-700' : 'text-amber-700'}`}>
-                  Naročite novo potrdilo pri FURS (e-Davki) in ga naložite v nastavitvah.
-                </p>
-              </div>
-              <Link href={`/${params.slug}/settings/certificate`} className="flex-shrink-0">
-                <Button size="sm">Naloži nov certifikat →</Button>
-              </Link>
-            </div>
+              Naročite novo potrdilo pri FURS (eDavki) in ga naložite v nastavitvah.
+            </Alert>
           )}
 
-          {/* FURS certificate reminder — shown until an active certificate exists */}
+          {/* Certificate reminder — shown while the guide is hidden and there is no certificate yet */}
           {showFursBanner && (
-            <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                </svg>
-                <div>
-                  <p className="text-sm font-semibold text-amber-900">Za produkcijsko delovanje dodajte FURS certifikat</p>
-                  <p className="mt-0.5 text-xs text-amber-700">V testnem načinu so računi označeni kot TESTNI.</p>
-                </div>
-              </div>
-              <Link href={`/${params.slug}/settings/certificate`} className="flex-shrink-0">
-                <Button size="sm">Dodaj certifikat →</Button>
-              </Link>
-            </div>
+            <Alert
+              variant="warning"
+              title="Za prave račune dodajte digitalno potrdilo (certifikat)"
+              action={
+                <Link href={`/${params.slug}/settings/certificate`}>
+                  <Button size="sm">Dodaj certifikat →</Button>
+                </Link>
+              }
+            >
+              Do takrat so računi označeni TESTNI.
+            </Alert>
           )}
 
           <Suspense fallback={<DashboardSkeleton />}>

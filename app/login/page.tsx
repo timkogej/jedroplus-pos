@@ -7,6 +7,7 @@ import { usePosStore } from '@/store/posStore'
 import { resolveCompanyForUser } from '@/lib/auth/resolveCompany'
 import Button from '@/components/ui/Button'
 import { friendlyError } from '@/lib/errors'
+import Alert from '@/components/ui/Alert'
 
 const loginInfoText = 'Uporabite iste prijavne podatke kot v aplikaciji Jedro+.'
 
@@ -218,9 +219,7 @@ function LoginPageInner() {
             )}
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                {error}
-              </div>
+              <Alert variant="error">{error}</Alert>
             )}
 
             <Button type="submit" loading={loading} className="w-full" size="lg">
