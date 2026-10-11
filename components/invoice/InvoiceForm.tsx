@@ -14,6 +14,7 @@ import type { InvoiceFormData, InvoiceItemForm, PosPremise, PosDevice, PosSettin
 import { friendlyError } from '@/lib/errors'
 import Alert from '@/components/ui/Alert'
 import Icon from '@/components/ui/Icon'
+import DecimalInput from '@/components/ui/DecimalInput'
 
 interface InvoiceFormProps {
   companyId: string
@@ -204,7 +205,7 @@ export default function InvoiceForm({
       setError('Izberite poslovni prostor in napravo')
       return
     }
-    if (items.some((i) => !i.description || i.unit_price <= 0)) {
+    if (items.some((i) => !i.description || i.unit_price <= 0 || i.quantity <= 0)) {
       setError('Izpolnite vse postavke računa')
       return
     }
@@ -503,21 +504,19 @@ export default function InvoiceForm({
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    step="0.5"
+                  <DecimalInput
+                    decimals={3}
+                    emptyAs={1}
                     placeholder="Kol."
+                    aria-label="Količina"
                     value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 1)}
+                    onValueChange={(n) => updateItem(index, 'quantity', n)}
                   />
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                  <DecimalInput
                     placeholder={`Cena ${currencySymbol}`}
+                    aria-label={`Cena v ${currencySymbol} (z DDV)`}
                     value={item.unit_price}
-                    onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                    onValueChange={(n) => updateItem(index, 'unit_price', n)}
                   />
                   {!vatExempt && (
                     <Select
@@ -540,23 +539,22 @@ export default function InvoiceForm({
                   />
                 </div>
                 <div className="col-span-2">
-                  <Input
+                  <DecimalInput
                     label={index === 0 ? 'Kol.' : ''}
-                    type="number"
-                    min="1"
-                    step="0.5"
+                    aria-label="Količina"
+                    decimals={3}
+                    emptyAs={1}
                     value={item.quantity}
-                    onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 1)}
+                    onValueChange={(n) => updateItem(index, 'quantity', n)}
                   />
                 </div>
                 <div className="col-span-2">
-                  <Input
+                  <DecimalInput
                     label={index === 0 ? `Cena (${currencySymbol})` : ''}
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    aria-label={`Cena v ${currencySymbol} (z DDV)`}
+                    placeholder="0,00"
                     value={item.unit_price}
-                    onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                    onValueChange={(n) => updateItem(index, 'unit_price', n)}
                   />
                 </div>
                 <div className="col-span-2">
@@ -588,12 +586,10 @@ export default function InvoiceForm({
           <h4 className="text-xs font-medium text-gray-500 mb-3">Popust</h4>
           <div className="flex gap-2">
             <div className="flex-1">
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
+              <DecimalInput
+                aria-label="Popust"
                 value={discountAmount}
-                onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                onValueChange={setDiscountAmount}
                 placeholder="0"
               />
             </div>

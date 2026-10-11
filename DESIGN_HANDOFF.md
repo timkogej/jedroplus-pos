@@ -52,6 +52,7 @@ Posodobljeno: 2026-10-11 (po PR #3 in #4). Prejšnja različica (maj 2026, opiso
 | `Badge` | značke stanja računa (besedila v razdelku 6). |
 | `Popover` | sidrana ploščica (Esc, klik zunaj, ostane na zaslonu); uporabljata `HelpTip` in kapsula stanja. |
 | `Card` | bela kartica z mehko obrobo. |
+| `DecimalInput` | polje za zneske in količine: da se izprazniti, sprejme vejico in piko, na telefonu pokaže decimalno tipkovnico. Zunaj je navadno število, zato izračuni ostanejo enaki (`lib/decimal.ts`, s testi). |
 | `Icon` | **edini** nabor ikon (`<Icon name="check" />`, 36 ikon, obris 24×24). Nova ikona se doda v `ICONS`, ne kot ročen `<svg>`. Ikone so dekorativne (`aria-hidden`); pomen je v besedilu ali `aria-label` na gumbu. Izjema: spinner v `Button`. |
 
 ### `components/layout`
@@ -89,7 +90,6 @@ Posodobljeno: 2026-10-11 (po PR #3 in #4). Prejšnja različica (maj 2026, opiso
 
 ## 8. Znane vrzeli (ni narejeno)
 
-- Vnos količine in cene v obrazcu računa: brisanje polja vrne "1" (pri količini); vejica ni zagotovljena na vseh tipkovnicah.
 - Samo svetla tema.
 - Nekateri drobni napisi so še 12 px (temnejše, a majhno).
 
